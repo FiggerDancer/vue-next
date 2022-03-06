@@ -4,10 +4,15 @@ import { ComputedGetter, ComputedRef } from './computed'
 import { ReactiveFlags, toRaw } from './reactive'
 import { trackRefValue, triggerRefValue } from './ref'
 
+// 延迟计算属性
+
+// 其实原理就是将要调度的副作用函数放到队列里，然后当前宏任务结束，微任务执行时，异步调用。直到执行完毕
+
 const tick = Promise.resolve()
 const queue: any[] = []
-let queued = false
+let queued = false // 一个标记
 
+// 调度器
 const scheduler = (fn: any) => {
   queue.push(fn)
   if (!queued) {
@@ -23,6 +28,7 @@ const flush = () => {
   queue.length = 0
   queued = false
 }
+
 
 class DeferredComputedRefImpl<T> {
   public dep?: Dep = undefined
@@ -40,14 +46,15 @@ class DeferredComputedRefImpl<T> {
     let scheduled = false
     this.effect = new ReactiveEffect(getter, (computedTrigger?: boolean) => {
       if (this.dep) {
-        if (computedTrigger) {
-          compareTarget = this._value
-          hasCompareTarget = true
-        } else if (!scheduled) {
+        if (computedTrigger) { // 计算属性触发
+          compareTarget = this._value // 比较的对象
+          hasCompareTarget = true // 有无比较的对象
+        } else if (!scheduled) { // 调度器是否正在执行
           const valueToCompare = hasCompareTarget ? compareTarget : this._value
           scheduled = true
           hasCompareTarget = false
           scheduler(() => {
+            // 值不等触发副作用
             if (this.effect.active && this._get() !== valueToCompare) {
               triggerRefValue(this)
             }
@@ -57,12 +64,14 @@ class DeferredComputedRefImpl<T> {
         // chained upstream computeds are notified synchronously to ensure
         // value invalidation in case of sync access; normal effects are
         // deferred to be triggered in scheduler.
+        // 链接的上游计算被同步通知，以确保值无效的情况下同步访问;正常的效果被延迟到调度程序中触发。
         for (const e of this.dep) {
           if (e.computed instanceof DeferredComputedRefImpl) {
             e.scheduler!(true /* computedTrigger */)
           }
         }
       }
+      // 数据变为脏
       this._dirty = true
     })
     this.effect.computed = this as any
@@ -83,6 +92,7 @@ class DeferredComputedRefImpl<T> {
   }
 }
 
+// 延迟计算属性
 export function deferredComputed<T>(getter: () => T): ComputedRef<T> {
   return new DeferredComputedRefImpl(getter) as any
 }
