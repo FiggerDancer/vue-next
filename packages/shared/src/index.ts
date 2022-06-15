@@ -33,6 +33,7 @@ export const NO = () => false
 
 // 正则用于匹配监听的事件 比如：onClick
 const onRE = /^on[^a-z]/
+// 以on开头
 export const isOn = (key: string) => onRE.test(key)
 
 // 判断是否是v-model监听 onUpdate: (相当于Vue2里的.sync,$emit('update:'))
@@ -152,7 +153,7 @@ export const camelize = cacheStringFunction((str: string): string => {
 const hyphenateRE = /\B([A-Z])/g
 /**
  * @private
- * 驼峰 => 连字
+ * 驼峰 => 烤串化
  * propsData => props-data
  */
 export const hyphenate = cacheStringFunction((str: string) =>
@@ -181,7 +182,11 @@ export const toHandlerKey = cacheStringFunction((str: string) =>
 export const hasChanged = (value: any, oldValue: any): boolean =>
   !Object.is(value, oldValue)
 
-// 依次调用数组的函数
+/**
+ * 依次调用数组的函数
+ * @param fns 
+ * @param arg 
+ */
 export const invokeArrayFns = (fns: Function[], arg?: any) => {
   for (let i = 0; i < fns.length; i++) {
     fns[i](arg)
@@ -205,6 +210,7 @@ export const toNumber = (val: any): any => {
 
 // 当前的全局对象
 let _globalThis: any
+// 获取全局变量
 export const getGlobalThis = (): any => {
   return (
     _globalThis ||

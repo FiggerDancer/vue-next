@@ -97,6 +97,8 @@ export function defineEmits<EE extends string = string>(
 export function defineEmits<E extends EmitsOptions = EmitsOptions>(
   emitOptions: E
 ): EmitFn<E>
+
+
 export function defineEmits<TypeEmit>(): TypeEmit
 // implementation
 export function defineEmits() {
@@ -105,6 +107,9 @@ export function defineEmits() {
   }
   return null as any
 }
+defineEmits<{
+  (event: 'update'): void
+}>()
 
 /**
  * Vue `<script setup>` compiler macro for declaring a component's exposed

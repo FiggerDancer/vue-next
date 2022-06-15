@@ -96,6 +96,8 @@ export const enum PatchFlags {
    * Indicates a fragment that was created only because the user has placed
    * comments at the root level of a template. This is a dev-only flag since
    * comments are stripped in production.
+   * 指示仅仅因为用户在模板的根级别放置了注释而创建的片段。
+   * 这是一个仅限开发环境使用的标志，因为在生产环境中注释已经被删除了。
    */
   DEV_ROOT_FRAGMENT = 1 << 11,
 
@@ -118,6 +120,9 @@ export const enum PatchFlags {
    * when encountering non-compiler generated slots (i.e. manually written
    * render functions, which should always be fully diffed)
    * OR manually cloneVNodes
+   * 一个特殊的标志，指示diff算法应该脱离优化模式。
+   * 例如，在renderSlot()创建的块片段中，
+   * 当遇到非编译器生成的槽(例如，手动编写的渲染函数，应该总是完全不同的)或手动克隆节点
    */
   BAIL = -2
 }

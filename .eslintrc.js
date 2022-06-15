@@ -22,7 +22,7 @@ module.exports = {
       'ObjectExpression > SpreadElement',
       'ObjectPattern > RestElement',
       'AwaitExpression'
-    ]
+    ],
   },
   overrides: [
     // tests, no restrictions (runs in Node / jest with jsdom)

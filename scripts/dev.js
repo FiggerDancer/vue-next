@@ -1,14 +1,19 @@
 // Using esbuild for faster dev builds.
 // We are still using Rollup for production builds because it generates
 // smaller files w/ better tree-shaking.
+// 开发环境：为了更快的开发构建使用esbuild
+// 生产环境：我们依然使用rollup构建因为生成更小的文件有更好的摇树功能
 
 // @ts-check
 const { build } = require('esbuild')
 const nodePolyfills = require('@esbuild-plugins/node-modules-polyfill')
 const { resolve, relative } = require('path')
+// 获取命令行参数
 const args = require('minimist')(process.argv.slice(2))
 
+// 设置打包目标，默认什么也不传就会打包vue包
 const target = args._[0] || 'vue'
+// 设置打包格式
 const format = args.f || 'global'
 const inlineDeps = args.i || args.inline
 const pkg = require(resolve(__dirname, `../packages/${target}/package.json`))
@@ -66,6 +71,7 @@ if (!inlineDeps) {
   }
 }
 
+// 执行esbuild打包
 build({
   entryPoints: [resolve(__dirname, `../packages/${target}/src/index.ts`)],
   outfile,

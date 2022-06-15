@@ -55,10 +55,16 @@ export function popScopeId() {
  */
 export const withScopeId = (_id: string) => withCtx
 
+/**
+ * _n 已经序列化
+ * _c 已经编译过了
+ * _d 禁止跟踪
+ * _ns 无作用域
+ */
 export type ContextualRenderFn = {
   (...args: any[]): any
   _n: boolean /* already normalized */
-  _c: boolean /* compiled */
+  _c: boolean /* compiled 被编译 */
   _d: boolean /* disableTracking */
   _ns: boolean /* nonScoped */
 }

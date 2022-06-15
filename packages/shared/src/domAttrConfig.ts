@@ -10,12 +10,18 @@ import { makeMap } from './makeMap'
  * - nomodule -> noModule
  * - novalidate -> noValidate
  * - readonly -> readOnly
+ * 在客户端，我们需要为布尔属性提供特殊情况，这些属性的名称与其对应的dom属性不同:
  */
 const specialBooleanAttrs = `itemscope,allowfullscreen,formnovalidate,ismap,nomodule,novalidate,readonly`
+/**
+ * 在客户端，我们需要为布尔属性提供特殊情况，这些属性的名称与其对应的dom属性不同:
+ */
 export const isSpecialBooleanAttr = /*#__PURE__*/ makeMap(specialBooleanAttrs)
 
 /**
  * The full list is needed during SSR to produce the correct initial markup.
+ * SSR期间需要完整的清单以产生正确的初始标记。
+ * 所有的布尔值attr
  */
 export const isBooleanAttr = /*#__PURE__*/ makeMap(
   specialBooleanAttrs +
@@ -27,14 +33,17 @@ export const isBooleanAttr = /*#__PURE__*/ makeMap(
 /**
  * Boolean attributes should be included if the value is truthy or ''.
  * e.g. `<select multiple>` compiles to `{ multiple: '' }`
+ * 如果值是truthy或者空字符串，就算做包含boolean属性
+ * 例如 `<select multiple>` 编译成 `{ multiple: ''}`
  */
 export function includeBooleanAttr(value: unknown): boolean {
   return !!value || value === ''
 }
-
+// 不安全字符
 const unsafeAttrCharRE = /[>/="'\u0009\u000a\u000c\u0020]/
+// 属性校验缓存
 const attrValidationCache: Record<string, boolean> = {}
-
+// 是否是SSR安全attr名称
 export function isSSRSafeAttrName(name: string): boolean {
   if (attrValidationCache.hasOwnProperty(name)) {
     return attrValidationCache[name]
@@ -46,6 +55,9 @@ export function isSSRSafeAttrName(name: string): boolean {
   return (attrValidationCache[name] = !isUnsafe)
 }
 
+/**
+ * props和attr的映射
+ */
 export const propsToAttrMap: Record<string, string | undefined> = {
   acceptCharset: 'accept-charset',
   className: 'class',
@@ -55,6 +67,7 @@ export const propsToAttrMap: Record<string, string | undefined> = {
 
 /**
  * CSS properties that accept plain numbers
+ * 接受普通数字的CSS属性
  */
 export const isNoUnitNumericStyleProp = /*#__PURE__*/ makeMap(
   `animation-iteration-count,border-image-outset,border-image-slice,` +
@@ -73,6 +86,7 @@ export const isNoUnitNumericStyleProp = /*#__PURE__*/ makeMap(
  * so that we don't stringify bindings that cannot be set from HTML.
  * Don't also forget to allow `data-*` and `aria-*`!
  * Generated from https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
+ * 已知HTML属性，用于运行时静态节点的字符串化。这样我们就不会对无法从HTML设置的绑定进行stringify。别忘了允许使用“data-*”和“aria-*”!
  */
 export const isKnownHtmlAttr = /*#__PURE__*/ makeMap(
   `accept,accept-charset,accesskey,action,align,allow,alt,async,` +
@@ -94,6 +108,7 @@ export const isKnownHtmlAttr = /*#__PURE__*/ makeMap(
 
 /**
  * Generated from https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute
+ * 已知的SVG属性
  */
 export const isKnownSvgAttr = /*#__PURE__*/ makeMap(
   `xmlns,accent-height,accumulate,additive,alignment-baseline,alphabetic,amplitude,` +

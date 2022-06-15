@@ -9,48 +9,61 @@ if (!process.env.TARGET) {
 }
 
 const masterVersion = require('./package.json').version
+// 获取包的目录 ./packages
 const packagesDir = path.resolve(__dirname, 'packages')
+// 获取要打包的包的名称，默认是vue ./packages/vue
 const packageDir = path.resolve(packagesDir, process.env.TARGET)
+// resolve获取 ./packages/vue下的文件
 const resolve = p => path.resolve(packageDir, p)
 const pkg = require(resolve(`package.json`))
 const packageOptions = pkg.buildOptions || {}
 const name = packageOptions.filename || path.basename(packageDir)
 
 // ensure TS checks only once for each build
+// 确保TS对每个构建只检查一次
 let hasTSChecked = false
 
+// 输出的格式
 const outputConfigs = {
+  // esm全量包，包含编译时
   'esm-bundler': {
     file: resolve(`dist/${name}.esm-bundler.js`),
     format: `es`
   },
+  // esm浏览器版全量包，包含编译时
   'esm-browser': {
     file: resolve(`dist/${name}.esm-browser.js`),
     format: `es`
   },
+  // commonjs
   cjs: {
     file: resolve(`dist/${name}.cjs.js`),
     format: `cjs`
   },
+  // 立即执行函数
   global: {
     file: resolve(`dist/${name}.global.js`),
     format: `iife`
   },
   // runtime-only builds, for main "vue" package only
+  // 仅用于运行时构建，仅用于主“vue”包 仅打包运行时
   'esm-bundler-runtime': {
     file: resolve(`dist/${name}.runtime.esm-bundler.js`),
     format: `es`
   },
+  // esm 仅打包运行时
   'esm-browser-runtime': {
     file: resolve(`dist/${name}.runtime.esm-browser.js`),
     format: 'es'
   },
+  // iife 仅打包运行时
   'global-runtime': {
     file: resolve(`dist/${name}.runtime.global.js`),
     format: 'iife'
   }
 }
 
+// 默认格式 esm-bundler 和 cjs
 const defaultFormats = ['esm-bundler', 'cjs']
 const inlineFormats = process.env.FORMATS && process.env.FORMATS.split(',')
 const packageFormats = inlineFormats || packageOptions.formats || defaultFormats
@@ -58,6 +71,7 @@ const packageConfigs = process.env.PROD_ONLY
   ? []
   : packageFormats.map(format => createConfig(format, outputConfigs[format]))
 
+// 如果是生产环境
 if (process.env.NODE_ENV === 'production') {
   packageFormats.forEach(format => {
     if (packageOptions.prod === false) {
@@ -118,6 +132,7 @@ function createConfig(format, output, plugins = []) {
   // during a single build.
   hasTSChecked = true
 
+  // 确定入口文件，运行时打包和非运行时打包是不一样的
   let entryFile = /runtime$/.test(format) ? `src/runtime.ts` : `src/index.ts`
 
   // the compat build needs both default AND named exports. This will cause

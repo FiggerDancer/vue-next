@@ -38,10 +38,11 @@ export const newTracked = (dep: Dep): boolean => (dep.n & trackOpBit) > 0
 // effect(() => {  // effectTrackDepth = 0  trackOpbit = 1 << 0
 //   console.log(data.a) // data => 'a' => dep.tag |= trackOpbit        dep.tag = 1
 //   effect(() => {  // effectTrackDepth = 1  trackOpbit = 1 << 1
-//     console.log(data.a + 1) // data => 'a' => dep.tag |= trackOpbit  dep.tag = 3 
+//     console.log(data.a + 1) // data => 'a' => dep.tag |= trackOpbit  dep.tag = 3
 //   })
 // })
 // 最后我们可以通过 dep.tag & 2 > 0  来判断该dep是否在特定的effect中使用过
+// 其实这里就是借助了权限管理的知识，第一层的effect依赖不依赖1，第二层的依赖不依赖11，第三层的依赖不依赖111，只有有以一层不依赖了那这个dep.tag肯定就变了，但是你仔细想&的时候，只要当前这一层effect依赖它，这一层的就不用删
 
 
 // 初始化Dep的标记数量
@@ -53,7 +54,7 @@ export const initDepMarkers = ({ deps }: ReactiveEffect) => {
   }
 }
 
-// 清理标记
+// 清理标记，同时清理不需要的依赖
 export const finalizeDepMarkers = (effect: ReactiveEffect) => {
   const { deps } = effect
   if (deps.length) {
@@ -66,7 +67,7 @@ export const finalizeDepMarkers = (effect: ReactiveEffect) => {
         deps[ptr++] = dep
       }
       // clear bits
-      // 清理标记位，归0
+      // 清理标记位，只是清除当前位
       dep.w &= ~trackOpBit
       dep.n &= ~trackOpBit
     }

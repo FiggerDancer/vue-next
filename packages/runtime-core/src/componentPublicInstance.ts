@@ -223,6 +223,7 @@ const getPublicInstance = (
   return getPublicInstance(i.parent)
 }
 
+// 公共属性映射表
 export const publicPropertiesMap: PublicPropertiesMap = /*#__PURE__*/ extend(
   Object.create(null),
   {

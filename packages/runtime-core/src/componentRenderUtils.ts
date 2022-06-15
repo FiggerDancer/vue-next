@@ -268,6 +268,7 @@ const getChildRoot = (
   return [normalizeVNode(childRoot), setRoot]
 }
 
+// 过滤多个节点，如果超过1个节点，返回第一个子节点
 export function filterSingleRoot(
   children: VNodeArrayChildren
 ): VNode | undefined {
@@ -276,9 +277,11 @@ export function filterSingleRoot(
     const child = children[i]
     if (isVNode(child)) {
       // ignore user comment
+      // 忽略用户的注释
       if (child.type !== Comment || child.children === 'v-if') {
         if (singleRoot) {
           // has more than 1 non-comment child, return now
+          // 有超过1个非注释的子节点，现在返回
           return
         } else {
           singleRoot = child

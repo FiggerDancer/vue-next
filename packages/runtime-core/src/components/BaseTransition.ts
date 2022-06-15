@@ -93,6 +93,14 @@ export interface TransitionElement {
   _leaveCb?: PendingCallback
 }
 
+/**
+ * 获取transition过渡的状态
+ * isMounted 已挂载
+ * isLeaving: 正离开
+ * isUmounting: 卸载中
+ * leavingVNodes: 离开的虚拟节点
+ * @returns 
+ */
 export function useTransitionState(): TransitionState {
   const state: TransitionState = {
     isMounted: false,

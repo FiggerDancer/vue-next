@@ -162,6 +162,7 @@ const shallowUnwrapHandlers: ProxyHandler<any> = {
 }
 
 // 如果ref的是一个object，那么就要考虑代理它的取值问题
+// 如果本身这个值是个响应式的值，就直接返回，否则生成新的代理浅拆包
 export function proxyRefs<T extends object>(
   objectWithRefs: T
 ): ShallowUnwrapRef<T> {

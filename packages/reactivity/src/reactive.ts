@@ -310,7 +310,7 @@ export function toRaw<T>(observed: T): T {
   return raw ? toRaw(raw) : observed
 }
 
-// 标记原始值
+// 标记原始值，这些值是可以跳过响应式的
 export function markRaw<T extends object>(value: T): T {
   // 定义这个value值为原始值，这样在做响应式时，可以直接跳过
   def(value, ReactiveFlags.SKIP, true)
