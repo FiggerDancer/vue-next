@@ -179,7 +179,7 @@ export interface RendererElement extends RendererNode {}
 // features so that they can be decoupled from this file. Keys are shortened
 // to optimize bundle size.
 // 一个暴露渲染器内部结构的对象，传递给可摇树特性，这样它们就可以从这个文件中解耦。
-// 键被缩短以优化包大小。
+// 键被缩短以优化包大小。有利于摇树
 export interface RendererInternals<
   HostNode = RendererNode,
   HostElement = RendererElement

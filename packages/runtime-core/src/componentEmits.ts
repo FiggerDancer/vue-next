@@ -59,6 +59,7 @@ export type EmitFn<
 > = Options extends Array<infer V>
   ? (event: V, ...args: any[]) => void
   : {} extends Options // if the emit is empty object (usually the default value for emit) should be converted to function
+  // 如果emit是一个空对象（通常默认值用于emit）应该被转化为一个方法
   ? (event: string, ...args: any[]) => void
   : UnionToIntersection<
       {
@@ -68,6 +69,13 @@ export type EmitFn<
       }[Event]
     >
 
+/**
+ * emit方法
+ * @param instance 
+ * @param event 
+ * @param rawArgs 
+ * @returns 
+ */
 export function emit(
   instance: ComponentInternalInstance,
   event: string,
@@ -113,6 +121,7 @@ export function emit(
   const isModelListener = event.startsWith('update:')
 
   // for v-model update:xxx events, apply modifiers on args
+  // 用于v-model更新：xxx事件，在参数上应用修饰器
   const modelArg = isModelListener && event.slice(7)
   if (modelArg && modelArg in props) {
     const modifiersKey = `${
@@ -150,9 +159,12 @@ export function emit(
   let handler =
     props[(handlerName = toHandlerKey(event))] ||
     // also try camelCase event handler (#2249)
+    // 也尝试驼峰式事件处理器
     props[(handlerName = toHandlerKey(camelize(event)))]
   // for v-model update:xxx events, also trigger kebab-case equivalent
   // for props passed via kebab-case
+  // 用于v-model update:xxx 事件， 
+  // 也触发等效的 烤肉串 事件 用于属性传递 
   if (!handler && isModelListener) {
     handler = props[(handlerName = toHandlerKey(hyphenate(event)))]
   }

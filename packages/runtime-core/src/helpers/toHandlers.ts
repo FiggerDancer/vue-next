@@ -3,6 +3,7 @@ import { warn } from '../warning'
 
 /**
  * For prefixing keys in v-on="obj" with "on"
+ * 对于像v-on=“obj”这样的key值，增加前缀on，给该对象的每个键在增加on
  * @private
  */
 export function toHandlers(obj: Record<string, any>): Record<string, any> {
