@@ -27,13 +27,22 @@ import {
   compatModelEmit
 } from './compat/componentVModel'
 
+/**
+ * 触发选项对象
+ */
 export type ObjectEmitsOptions = Record<
   string,
   ((...args: any[]) => any) | null
 >
 
+/**
+ * 触发选项 对象或者字符串数组
+ */
 export type EmitsOptions = ObjectEmitsOptions | string[]
 
+/**
+ * 触发
+ */
 export type EmitsToProps<T extends EmitsOptions> = T extends string[]
   ? {
       [K in string & `on${Capitalize<T[number]>}`]?: (...args: any[]) => any
@@ -84,6 +93,7 @@ export function emit(
   const props = instance.vnode.props || EMPTY_OBJ
 
   if (__DEV__) {
+    // 触发选项
     const {
       emitsOptions,
       propsOptions: [propsOptions]

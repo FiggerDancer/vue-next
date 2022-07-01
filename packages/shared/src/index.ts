@@ -36,7 +36,11 @@ const onRE = /^on[^a-z]/
 // 以on开头
 export const isOn = (key: string) => onRE.test(key)
 
-// 判断是否是v-model监听 onUpdate: (相当于Vue2里的.sync,$emit('update:'))
+/**
+ * 判断是否是v-model监听 onUpdate: (相当于Vue2里的.sync,$emit('update:'))
+ * @param key 
+ * @returns 
+ */
 export const isModelListener = (key: string) => key.startsWith('onUpdate:')
 
 // 扩展函数

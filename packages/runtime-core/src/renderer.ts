@@ -2100,7 +2100,34 @@ function baseCreateRenderer(
   }
 
   // can be all-keyed or mixed
-  // 更新带全部key或者部分带key的子节点，这里包含diff算法
+  /**
+   * 更新带全部key或者部分带key的子节点，这里包含diff算法
+   * 完整的diff
+   * 第一步是从头开始更新比较节点，直到遇到不一样的
+   * (注：相同节点就是虚拟节点类型相同且key相同)
+   * 第二步是从尾部开始更新比较节点，直到找到不一样的
+   * 第三步如果第一步或第二步走完能让新节点或者旧节点全遍历完
+   * 其中新节点数量大于旧节点数量挂载新节点
+   * 第四步如果第一步或第二步走完能让新节点或者旧节点全遍历完
+   * 其中新节点数量小于旧节点数量卸载旧节点
+   * 第五步 新旧节点都没遍历完,这时候进入狭义的diff区域
+   * 1. 构建key列表
+   * 2. 循环遍历需要修补的旧子节点，并尝试修补匹配的节点，并删除不再存在的节点
+   * 同时去标记是否存在要移动的元素
+   * 3. 只有当节点移动时才生成最长稳定子序列
+   * 使用最长递增子序列获得最多的固定的元素（这样可以尽量少的dom操作）
+   * 从后向前遍历（这样我们就可以使用最后一个打过补丁的节点作为锚）
+   * 去添加新节点或者移动节点
+   * @param c1 
+   * @param c2 
+   * @param container 
+   * @param parentAnchor 
+   * @param parentComponent 
+   * @param parentSuspense 
+   * @param isSVG 
+   * @param slotScopeIds 
+   * @param optimized 
+   */
   const patchKeyedChildren = (
     c1: VNode[],
     c2: VNodeArrayChildren,

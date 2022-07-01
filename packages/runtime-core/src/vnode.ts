@@ -44,7 +44,9 @@ import { convertLegacyVModelProps } from './compat/componentVModel'
 import { defineLegacyVNodeProperties } from './compat/renderFn'
 import { callWithAsyncErrorHandling, ErrorCodes } from './errorHandling'
 
-// 片段
+/**
+ * 片段
+ */
 export const Fragment = Symbol(__DEV__ ? 'Fragment' : undefined) as any as {
   __isFragment: true
   new (): {
@@ -52,15 +54,23 @@ export const Fragment = Symbol(__DEV__ ? 'Fragment' : undefined) as any as {
   }
 }
 
-// 文本
+/**
+ * 文本
+ */
 export const Text = Symbol(__DEV__ ? 'Text' : undefined)
-// 注释
+/**
+ * 注释
+ */
 export const Comment = Symbol(__DEV__ ? 'Comment' : undefined)
-// 静态标记
+/**
+ * 静态标记
+ */
 export const Static = Symbol(__DEV__ ? 'Static' : undefined)
 
-// 节点类型
-// 字符串、虚拟Dom、组件、文本、静态、注释、片段、teleport、suspense
+/**
+ * 节点类型
+ * 字符串、虚拟Dom、组件、文本、静态、注释、片段、teleport、suspense
+ */
 export type VNodeTypes =
   | string
   | VNode
@@ -72,8 +82,10 @@ export type VNodeTypes =
   | typeof TeleportImpl
   | typeof SuspenseImpl
 
-// 节点引用ref
-// 字符串、ref，或者方法setRef
+/**
+ * 节点引用ref
+ * 字符串、ref，或者方法setRef
+ */
 export type VNodeRef =
   | string
   | Ref
@@ -116,7 +128,9 @@ export type VNodeProps = {
   onVnodeUnmounted?: VNodeMountHook | VNodeMountHook[]
 }
 
-// 子节点原子
+/**
+ * 子节点原子
+ */
 type VNodeChildAtom =
   | VNode
   | string
@@ -126,19 +140,54 @@ type VNodeChildAtom =
   | undefined
   | void
 
-// 子节点数组
+/**
+ * 子节点数组
+ */
 export type VNodeArrayChildren = Array<VNodeArrayChildren | VNodeChildAtom>
 
-// 子节点
+/**
+ * 子节点
+ */
 export type VNodeChild = VNodeChildAtom | VNodeArrayChildren
 
-// 序列化的子节点数组
+/**
+ * 序列化的子节点数组
+ */
 export type VNodeNormalizedChildren =
   | string
   | VNodeArrayChildren
   | RawSlots
   | null
 
+/**
+ * __v_isVNode:是否是虚拟节点  
+ * [ReactiveFlag.SKIP] 是否跳过 有时候做一些响应式处理有这个标记旧跳过  
+ * type： 虚拟节点类型  
+ * key:  
+ * ref  
+ * scopeId  
+ * slotScopeId  
+ * children 子节点  
+ * component 组件  
+ * dirs 指令  
+ * transition 过渡  
+ * el 元素  
+ * anchor fragment 锚点  
+ * target teleport 目标元素  
+ * targetAnchor teleport 锚点  
+ * staticCount 静态vnode中包含的元素数量   
+ * suspense  
+ * ssContent suspense 内容  
+ * ssFallback suspense 失败、加载  
+ * shapeFlag 类型标记   
+ * patchFlag 补丁标记  
+ * dynamicProps 动态属性  
+ * dynamicChildren 动态节点   
+ * appContext 根上下文  
+ * memo v-memo  
+ * isCompatRoot 是兼容性根节点  
+ * ce 自定义元素拦截钩子  
+ */
 export interface VNode<
   HostNode = RendererNode, // 宿主节点
   HostElement = RendererElement, // 宿主元素
@@ -385,7 +434,12 @@ export function isVNode(value: any): value is VNode {
   return value ? value.__v_isVNode === true : false
 }
 
-// 是相同的VNodeType（type相同且key相同就是相同节点）
+/**
+ * 是相同的VNodeType（type相同且key相同就是相同节点）
+ * @param n1 
+ * @param n2 
+ * @returns 
+ */
 export function isSameVNodeType(n1: VNode, n2: VNode): boolean {
   // 开发环境热更新组件一定返回false
   if (

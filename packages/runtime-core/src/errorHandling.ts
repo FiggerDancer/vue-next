@@ -5,6 +5,9 @@ import { isPromise, isFunction } from '@vue/shared'
 
 // contexts where user provided function may be executed, in addition to
 // lifecycle hooks.
+/**
+ * 用户提供功能可能被执行的上下文 除了生命周期钩子
+ */
 export const enum ErrorCodes {
   SETUP_FUNCTION,
   RENDER_FUNCTION,
@@ -23,6 +26,10 @@ export const enum ErrorCodes {
   SCHEDULER
 }
 
+/**
+ * 错误类型字符串
+ * 这些钩子的字符串信息
+ */
 export const ErrorTypeStrings: Record<number | string, string> = {
   [LifecycleHooks.SERVER_PREFETCH]: 'serverPrefetch hook',
   [LifecycleHooks.BEFORE_CREATE]: 'beforeCreate hook',
@@ -59,6 +66,14 @@ export const ErrorTypeStrings: Record<number | string, string> = {
 
 export type ErrorTypes = LifecycleHooks | ErrorCodes
 
+/**
+ * 错误处理函数
+ * @param fn 
+ * @param instance 
+ * @param type 
+ * @param args 
+ * @returns 
+ */
 export function callWithErrorHandling(
   fn: Function,
   instance: ComponentInternalInstance | null,
@@ -67,21 +82,35 @@ export function callWithErrorHandling(
 ) {
   let res
   try {
+    // 函数返回结果 参数  有参数  调用函数时带参数，否则不带
     res = args ? fn(...args) : fn()
   } catch (err) {
+    // 处理错误
     handleError(err, instance, type)
   }
+  // 将函数的返回结果反出去
   return res
 }
 
+/**
+ * 使用异步错误处理函数
+ * @param fn 
+ * @param instance 
+ * @param type 
+ * @param args 
+ * @returns 
+ */
 export function callWithAsyncErrorHandling(
   fn: Function | Function[],
   instance: ComponentInternalInstance | null,
   type: ErrorTypes,
   args?: unknown[]
 ): any[] {
+  // 是函数
   if (isFunction(fn)) {
+    // 调用错误处理函数
     const res = callWithErrorHandling(fn, instance, type, args)
+    // 如果调用的结果是promise 则需要catch下处理错误，然后返回promise本身
     if (res && isPromise(res)) {
       res.catch(err => {
         handleError(err, instance, type)
@@ -90,29 +119,49 @@ export function callWithAsyncErrorHandling(
     return res
   }
 
+  // 不是函数，那就是函数数组
   const values = []
+  // 函数数组去遍历处理
   for (let i = 0; i < fn.length; i++) {
     values.push(callWithAsyncErrorHandling(fn[i], instance, type, args))
   }
+  // 返回值
   return values
 }
 
+/**
+ * 处理错误
+ * @param err 
+ * @param instance 
+ * @param type 
+ * @param throwInDev 
+ * @returns 
+ */
 export function handleError(
   err: unknown,
   instance: ComponentInternalInstance | null,
   type: ErrorTypes,
   throwInDev = true
 ) {
+  // 上下文节点
   const contextVNode = instance ? instance.vnode : null
   if (instance) {
+    // 如果有实例
+    // 获取实例父节点
     let cur = instance.parent
     // the exposed instance is the render proxy to keep it consistent with 2.x
+    // 被暴露的实例是渲染器代理，以保持与2.x一致
     const exposedInstance = instance.proxy
     // in production the hook receives only the error code
+    // 在生产环境 钩子接收错误代码
     const errorInfo = __DEV__ ? ErrorTypeStrings[type] : type
+    // 从下往上递归找父节点，一直到根
     while (cur) {
+      // 错误捕获钩子
       const errorCapturedHooks = cur.ec
+      // 错误捕获钩子
       if (errorCapturedHooks) {
+        // 遍历错误捕获的钩子，如果错误捕获钩子的返回值是false，则结束遍历
         for (let i = 0; i < errorCapturedHooks.length; i++) {
           if (
             errorCapturedHooks[i](err, exposedInstance, errorInfo) === false
@@ -124,8 +173,10 @@ export function handleError(
       cur = cur.parent
     }
     // app-level handling
+    // app级别的处理
     const appErrorHandler = instance.appContext.config.errorHandler
     if (appErrorHandler) {
+      // 调用错误处理函数
       callWithErrorHandling(
         appErrorHandler,
         null,
@@ -135,25 +186,39 @@ export function handleError(
       return
     }
   }
+  // 打印错误日志
   logError(err, type, contextVNode, throwInDev)
 }
 
+/**
+ * 打印错误日志
+ * @param err 
+ * @param type 
+ * @param contextVNode 
+ * @param throwInDev 
+ */
 function logError(
   err: unknown,
   type: ErrorTypes,
   contextVNode: VNode | null,
   throwInDev = true
 ) {
+  // 如果开发者环境
   if (__DEV__) {
+    // 错误信息类型
     const info = ErrorTypeStrings[type]
+    // 上下文节点，推入警告上下文节点
     if (contextVNode) {
       pushWarningContext(contextVNode)
     }
+    // 警告
     warn(`Unhandled error${info ? ` during execution of ${info}` : ``}`)
+    // 推出
     if (contextVNode) {
       popWarningContext()
     }
     // crash in dev by default so it's more noticeable
+    // 在开发中默认崩溃，所以它更容易被注意到
     if (throwInDev) {
       throw err
     } else if (!__TEST__) {
@@ -161,6 +226,7 @@ function logError(
     }
   } else {
     // recover in prod to reduce the impact on end-user
+    // 在prod中进行恢复，以减少对终端用户的影响
     console.error(err)
   }
 }
