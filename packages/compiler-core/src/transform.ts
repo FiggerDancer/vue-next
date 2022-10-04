@@ -96,7 +96,7 @@ export interface DirectiveTransformResult {
   ssrTagParts?: TemplateLiteral['elements']
 }
 
-// A structural directive transform is a technically a NodeTransform;
+// A structural directive transform is technically also a NodeTransform;
 // Only v-if and v-for fall into this category.
 /**
  * 一个结构化指令转化是技术上的实现是NodeTransform

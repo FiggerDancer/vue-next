@@ -107,15 +107,15 @@ function shouldSetAsProp(
     return false
   }
   // 非SVG
-  // spellcheck and draggable are numerated attrs, however their
-  // corresponding DOM properties are actually booleans - this leads to
-  // setting it with a string "false" value leading it to be coerced to 
-  // `true`, so we need to always treat them as attributes.
+  // these are enumerated attrs, however their corresponding DOM properties
+  // are actually booleans - this leads to setting it with a string "false"
+  // value leading it to be coerced to  `true`, so we need to always treat
+  // them as attributes.
   // Note that `contentEditable` doesn't have this problem: its DOM
   // property is also enumerated string values.
   // 拼写检查和可拖动属性是数字属性，但它们对应的DOM属性实际上是布尔值
   // 这导致将该值设置为"false"字符串时会导致它被强制纠正为`true`
-  if (key === 'spellcheck' || key === 'draggable') {
+  if (key === 'spellcheck' || key === 'draggable' || key === 'translate') {
     return false
   }
 

@@ -6,15 +6,33 @@ let activeEffectScope: EffectScope | undefined
 
 // 副作用函数作用域
 export class EffectScope {
+  /**
+   * @internal
+   */
   active = true
+  /**
+   * @internal
+   */
   effects: ReactiveEffect[] = [] // 副作用函数
+  /**
+   * @internal
+   */
   cleanups: (() => void)[] = [] // 清理回调
 
+  /**
+   * only assigned by undetached scope
+   * @internal
+   */
   parent: EffectScope | undefined // 父副作用函数作用域
+  /**
+   * record undetached scopes
+   * @internal
+   */
   scopes: EffectScope[] | undefined // 副作用函数作用域
   /**
    * track a child scope's index in its parent's scopes array for optimized
    * removal
+   * @internal
    * 在父范围数组中跟踪子范围的索引，以优化删除
    */
   private index: number | undefined
@@ -31,23 +49,32 @@ export class EffectScope {
 
   run<T>(fn: () => T): T | undefined {
     if (this.active) {
+      const currentEffectScope = activeEffectScope
       try {
         // 执行前使用当前作用域，执行后回到父作用域
         activeEffectScope = this
         return fn()
       } finally {
-        activeEffectScope = this.parent
+        activeEffectScope = currentEffectScope
       }
     } else if (__DEV__) {
       warn(`cannot run an inactive effect scope.`)
     }
   }
 
+  /**
+   * This should only be called on non-detached scopes
+   * @internal
+   */
   on() {
     // 修改当前作用域为当前值
     activeEffectScope = this
   }
 
+  /**
+   * This should only be called on non-detached scopes
+   * @internal
+   */
   off() {
     // 作用域回退
     activeEffectScope = this.parent

@@ -28,7 +28,7 @@ export function startMeasure(
 
   // 开发者工具开始记录执行开始时间
   if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
-    devtoolsPerfStart(instance, type, supported ? perf.now() : Date.now())
+    devtoolsPerfStart(instance, type, isSupported() ? perf.now() : Date.now())
   }
 }
 
@@ -54,7 +54,7 @@ export function endMeasure(instance: ComponentInternalInstance, type: string) {
 
   // 开发者工具统计执行结束时间
   if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
-    devtoolsPerfEnd(instance, type, supported ? perf.now() : Date.now())
+    devtoolsPerfEnd(instance, type, isSupported() ? perf.now() : Date.now())
   }
 }
 

@@ -107,7 +107,7 @@ export const createHook =
     // ssr 除了serverPrefetch 就不创建钩子
     // 非ssr的正常情况下是要创建的
     (!isInSSRComponentSetup || lifecycle === LifecycleHooks.SERVER_PREFETCH) &&
-    injectHook(lifecycle, hook, target)
+    injectHook(lifecycle, (...args: unknown[]) => hook(...args), target)
 
 // 生命周期钩子
 export const onBeforeMount = createHook(LifecycleHooks.BEFORE_MOUNT)

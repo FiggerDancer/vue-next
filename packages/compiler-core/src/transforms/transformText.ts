@@ -5,7 +5,8 @@ import {
   createCallExpression,
   CallExpression,
   ElementTypes,
-  ConstantTypes
+  ConstantTypes,
+  createCompoundExpression
 } from '../ast'
 import { isText } from '../utils'
 import { CREATE_TEXT } from '../runtimeHelpers'
@@ -56,11 +57,10 @@ export const transformText: NodeTransform = (node, context) => {
               // 生成复杂表达式节点 [ExpressionNode, ` + `, TextNode]
               if (!currentContainer) {
                 // 当前容器
-                currentContainer = children[i] = {
-                  type: NodeTypes.COMPOUND_EXPRESSION,
-                  loc: child.loc,
-                  children: [child]
-                }
+                currentContainer = children[i] = createCompoundExpression(
+                  [child],
+                  child.loc
+                )
               }
               // merge adjacent text node into current
               // 合并相邻的文本节点到当前节点

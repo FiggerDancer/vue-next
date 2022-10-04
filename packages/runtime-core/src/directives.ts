@@ -18,7 +18,7 @@ return withDirectives(h(comp), [
 import { VNode } from './vnode'
 import { isFunction, EMPTY_OBJ, isBuiltInDirective } from '@vue/shared'
 import { warn } from './warning'
-import { ComponentInternalInstance, Data } from './component'
+import { ComponentInternalInstance, Data, getExposeProxy } from './component'
 import { currentRenderingInstance } from './componentRenderContext'
 import { callWithAsyncErrorHandling, ErrorCodes } from './errorHandling'
 import { ComponentPublicInstance } from './componentPublicInstance'
@@ -147,7 +147,9 @@ export function withDirectives<T extends VNode>(
     return vnode
   }
   // 实例   内部实例代理
-  const instance = internalInstance.proxy
+  const instance =
+    (getExposeProxy(internalInstance) as ComponentPublicInstance) ||
+    internalInstance.proxy
   // 从vnode节点上获取绑定过的指令，以此为基础添加新指令
   const bindings: DirectiveBinding[] = vnode.dirs || (vnode.dirs = [])
   // 遍历指令数组，依次添加

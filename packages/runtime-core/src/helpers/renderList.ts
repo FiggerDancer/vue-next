@@ -75,7 +75,6 @@ export function renderList(
     // 数字，判断是不是整数，不是整数警告
     if (__DEV__ && !Number.isInteger(source)) {
       warn(`The v-for range expect an integer value but got ${source}.`)
-      return []
     }
     // 整数则声称x个item，x为整数的值，每个item从1开始，索引从0开始
     ret = new Array(source)

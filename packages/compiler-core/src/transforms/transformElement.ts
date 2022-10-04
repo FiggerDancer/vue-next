@@ -141,7 +141,13 @@ export const transformElement: NodeTransform = (node, context) => {
 
     // props
     if (props.length > 0) {
-      const propsBuildResult = buildProps(node, context)
+      const propsBuildResult = buildProps(
+        node,
+        context,
+        undefined,
+        isComponent,
+        isDynamicComponent
+      )
       // 节点props
       vnodeProps = propsBuildResult.props
       // 更新标记
@@ -438,7 +444,9 @@ function resolveSetupReference(name: string, context: TransformContext) {
   }
 
   // 看是否存在常量
-  const fromConst = checkType(BindingTypes.SETUP_CONST)
+  const fromConst =
+    checkType(BindingTypes.SETUP_CONST) ||
+    checkType(BindingTypes.SETUP_REACTIVE_CONST)
   if (fromConst) {
     return context.inline
       ? // in inline mode, const setup bindings (e.g. imports) can be used as-is
@@ -478,6 +486,8 @@ export function buildProps(
   node: ElementNode,
   context: TransformContext,
   props: ElementNode['props'] = node.props,
+  isComponent: boolean,
+  isDynamicComponent: boolean,
   ssr = false
 ): {
   props: PropsExpression | undefined
@@ -488,7 +498,6 @@ export function buildProps(
 } {
   const { tag, loc: elementLoc, children } = node
   // 是动态组件
-  const isComponent = node.tagType === ElementTypes.COMPONENT
   // 属性
   let properties: ObjectExpression['properties'] = []
   // 合并参数
@@ -517,6 +526,16 @@ export function buildProps(
   // 动态prop名称
   const dynamicPropNames: string[] = []
 
+  const pushMergeArg = (arg?: PropsExpression) => {
+    if (properties.length) {
+      mergeArgs.push(
+        createObjectExpression(dedupeProperties(properties), elementLoc)
+      )
+      properties = []
+    }
+    if (arg) mergeArgs.push(arg)
+  }
+
   // 分析更新标记
   const analyzePatchFlag = ({ key, value }: Property) => {
     // 是静态表达式
@@ -526,8 +545,8 @@ export function buildProps(
       // 是事件处理器
       const isEventHandler = isOn(name)
       if (
-        !isComponent &&
         isEventHandler &&
+        (!isComponent || isDynamicComponent) &&
         // omit the flag for click handlers because hydration gives click
         // dedicated fast path.
         // 省略点击处理程序的标志，
@@ -732,16 +751,9 @@ export function buildProps(
         hasDynamicKeys = true
         // 表达式
         if (exp) {
-          // 清空属性
-          if (properties.length) {
-            // 合并参数
-            mergeArgs.push(
-              createObjectExpression(dedupeProperties(properties), elementLoc)
-            )
-            properties = []
-          }
-          // v-bind
           if (isVBind) {
+            // have to merge early for compat build check
+            pushMergeArg()
             if (__COMPAT__) {
               // 2.x v-bind object order compat
               // 2.x v-bind 对象顺序兼容
@@ -789,11 +801,11 @@ export function buildProps(
             mergeArgs.push(exp)
           } else {
             // v-on="obj" -> toHandlers(obj)
-            mergeArgs.push({
+            pushMergeArg({
               type: NodeTypes.JS_CALL_EXPRESSION,
               loc,
               callee: context.helper(TO_HANDLERS),
-              arguments: [exp]
+              arguments: isComponent ? [exp] : [exp, `true`]
             })
           }
         } else {
@@ -817,8 +829,12 @@ export function buildProps(
         const { props, needRuntime } = directiveTransform(prop, node, context)
         // 非ssr环境遍历每个prop
         !ssr && props.forEach(analyzePatchFlag)
-        // 放入属性
+        if (isVOn && arg && !isStaticExp(arg)) {
+          pushMergeArg(createObjectExpression(props, elementLoc))
+        } else {
+          // 放入属性
         properties.push(...props)
+        }
         // 需要运行时
         if (needRuntime) {
           // 运行时指令放入prop
@@ -847,11 +863,8 @@ export function buildProps(
   // has v-bind="object" or v-on="object", wrap with mergeProps
   // 有v-bind="object"或者v-on="object",是用mergeProps包裹
   if (mergeArgs.length) {
-    if (properties.length) {
-      mergeArgs.push(
-        createObjectExpression(dedupeProperties(properties), elementLoc)
-      )
-    }
+    // close up any not-yet-merged props
+    pushMergeArg()
     if (mergeArgs.length > 1) {
       propsExpression = createCallExpression(
         context.helper(MERGE_PROPS),
@@ -958,12 +971,13 @@ export function buildProps(
           // style prop 且 不是静态表达式
           if (
             styleProp &&
-            !isStaticExp(styleProp.value) &&
             // the static style is compiled into an object,
             // so use `hasStyleBinding` to ensure that it is a dynamic style binding
             // 静态样式被编译成对象，所以使用`有样式绑定`来确保
             // 它是一个动态样式绑定
             (hasStyleBinding ||
+              (styleProp.value.type === NodeTypes.SIMPLE_EXPRESSION &&
+                styleProp.value.content.trim()[0] === `[`) ||
               // v-bind:style and style both exist,
               // v-bind:style with static literal object
               // v-bind: style和style都退出

@@ -66,6 +66,7 @@ function setStyle(
   if (isArray(val)) {
     val.forEach(v => setStyle(style, name, v))
   } else {
+    if (val == null) val = ''
     // 如果以--开头则表示自定义属性
     if (name.startsWith('--')) {
       // custom property definition

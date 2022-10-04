@@ -29,7 +29,8 @@ import {
   normalizeStyle,
   stringifyStyle,
   makeMap,
-  isKnownSvgAttr
+  isKnownSvgAttr,
+  isBooleanAttr
 } from '@vue/shared'
 import { DOMNamespaces } from '../parserOptions'
 
@@ -410,6 +411,7 @@ function stringifyElement(
 ): string {
   // 标签头部
   let res = `<${node.tag}`
+  let innerHTML = ''
   // 遍历，将属性一一添加
   for (let i = 0; i < node.props.length; i++) {
     const p = node.props[i]
@@ -419,40 +421,57 @@ function stringifyElement(
       if (p.value) {
         res += `="${escapeHtml(p.value.content)}"`
       }
-    } else if (p.type === NodeTypes.DIRECTIVE && p.name === 'bind') {
-      // 属性名称为bind，且类型为指令
+    } else if (p.type === NodeTypes.DIRECTIVE) {
+      if (p.name === 'bind') {
+        // 属性名称为bind，且类型为指令
       const exp = p.exp as SimpleExpressionNode
-      // 如果表达式开头是_
+        // 如果表达式开头是_
       if (exp.content[0] === '_') {
-        // internally generated string constant references
-        // e.g. imported URL strings via compiler-sfc transformAssetUrl plugin
-        // 内部生成的字符串常量引用
+          // internally generated string constant references
+          // e.g. imported URL strings via compiler-sfc transformAssetUrl plugin
+          // 内部生成的字符串常量引用
         // 例如 通过compiler-sfc transformAssetUrl插件导入URL字符串
-        res += ` ${(p.arg as SimpleExpressionNode).content}="__VUE_EXP_START__${
-          exp.content
-        }__VUE_EXP_END__"`
-        continue
-      }
-      // constant v-bind, e.g. :foo="1"
-      // 常量v-bind 例如 :foo="1"
+        res += ` ${
+            (p.arg as SimpleExpressionNode).content
+          }="__VUE_EXP_START__${exp.content}__VUE_EXP_END__"`
+          continue
+        }
+        // #6568
+        if (
+          isBooleanAttr((p.arg as SimpleExpressionNode).content) &&
+          exp.content === 'false'
+        ) {
+          continue
+        }
+        // constant v-bind, e.g. :foo="1"
+        // 常量v-bind 例如 :foo="1"
       // 获取表达式执行结果
       let evaluated = evaluateConstant(exp)
-      // 表达式执行结果不为null或undefined
+        // 表达式执行结果不为null或undefined
       if (evaluated != null) {
-        // 获取属性的参数
+          // 获取属性的参数
         const arg = p.arg && (p.arg as SimpleExpressionNode).content
-        // 属性为class
+          // 属性为class
         if (arg === 'class') {
-          // 序列化类名
+            // 序列化类名
           evaluated = normalizeClass(evaluated)
-        } else if (arg === 'style') {
-          // style
+          } else if (arg === 'style') {
+            // style
           evaluated = stringifyStyle(normalizeStyle(evaluated))
-        }
-        // 拼接
+          }
+          // 拼接
         res += ` ${(p.arg as SimpleExpressionNode).content}="${escapeHtml(
-          evaluated
-        )}"`
+            evaluated
+          )}"`
+        }
+      } else if (p.name === 'html') {
+        // #5439 v-html with constant value
+        // not sure why would anyone do this but it can happen
+        innerHTML = evaluateConstant(p.exp as SimpleExpressionNode)
+      } else if (p.name === 'text') {
+        innerHTML = escapeHtml(
+          toDisplayString(evaluateConstant(p.exp as SimpleExpressionNode))
+        )
       }
     }
   }
@@ -462,9 +481,13 @@ function stringifyElement(
   }
   // 结尾
   res += `>`
-  // 递归书写子节点
+  if (innerHTML) {
+    res += innerHTML
+  } else {
+    // 递归书写子节点
   for (let i = 0; i < node.children.length; i++) {
-    res += stringifyNode(node.children[i], context)
+      res += stringifyNode(node.children[i], context)
+    }
   }
   // 闭合
   if (!isVoidTag(node.tag)) {
@@ -479,7 +502,7 @@ function stringifyElement(
 // here, e.g. `{{ 1 }}` or `{{ 'foo' }}`
 // in addition, constant exps bail on presence of parens so you can't even
 // run JSFuck in here. But we mark it unsafe for security review purposes.
-// (see compiler-core/src/transformExpressions)
+// (see compiler-core/src/transforms/transformExpression)
 /**
  * 不安全
  * 原因： eval

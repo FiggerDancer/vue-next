@@ -7,6 +7,7 @@ import {
   hyphenate,
   isArray,
   isFunction,
+  isObject,
   isOn,
   toNumber,
   UnionToIntersection
@@ -90,6 +91,7 @@ export function emit(
   event: string,
   ...rawArgs: any[]
 ) {
+  if (instance.isUnmounted) return
   const props = instance.vnode.props || EMPTY_OBJ
 
   if (__DEV__) {
@@ -140,7 +142,8 @@ export function emit(
     const { number, trim } = props[modifiersKey] || EMPTY_OBJ
     if (trim) {
       args = rawArgs.map(a => a.trim())
-    } else if (number) {
+    }
+    if (number) {
       args = rawArgs.map(toNumber)
     }
   }
@@ -246,7 +249,9 @@ export function normalizeEmitsOptions(
   }
 
   if (!raw && !hasExtends) {
-    cache.set(comp, null)
+    if (isObject(comp)) {
+      cache.set(comp, null)
+    }
     return null
   }
 
@@ -256,7 +261,9 @@ export function normalizeEmitsOptions(
     extend(normalized, raw)
   }
 
-  cache.set(comp, normalized)
+  if (isObject(comp)) {
+    cache.set(comp, normalized)
+  }
   return normalized
 }
 

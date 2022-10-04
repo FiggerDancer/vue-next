@@ -98,6 +98,7 @@ function createConfig(format, output, plugins = []) {
     process.env.__DEV__ === 'false' || /\.prod\.js$/.test(output.file)
   const isBundlerESMBuild = /esm-bundler/.test(format)
   const isBrowserESMBuild = /esm-browser/.test(format)
+  const isServerRenderer = name === 'server-renderer'
   const isNodeBuild = format === 'cjs'
   const isGlobalBuild = /global/.test(format)
   const isCompatPackage = pkg.name === '@vue/compat'
@@ -124,6 +125,7 @@ function createConfig(format, output, plugins = []) {
     // 覆盖 tsconfig.json 中的一些配置
     tsconfigOverride: {
       compilerOptions: {
+        target: isServerRenderer || isNodeBuild ? 'es2019' : 'es2015',
         // 是否开启 source map
         sourceMap: output.sourcemap,
         // 生成类型定义文件
@@ -229,7 +231,8 @@ function createConfig(format, output, plugins = []) {
           !packageOptions.enableNonBrowserBranches,
         isGlobalBuild,
         isNodeBuild,
-        isCompatBuild
+        isCompatBuild,
+        isServerRenderer
       ),
       ...nodePlugins,
       ...plugins
@@ -253,7 +256,8 @@ function createReplacePlugin(
   isBrowserBuild,
   isGlobalBuild,
   isNodeBuild,
-  isCompatBuild
+  isCompatBuild,
+  isServerRenderer
 ) {
   const replacements = {
     __COMMIT__: `"${process.env.COMMIT}"`,
@@ -279,7 +283,7 @@ function createReplacePlugin(
     __NODE_JS__: isNodeBuild,
     // need SSR-specific branches?
     // 需要SSR特定分支
-    __SSR__: isNodeBuild || isBundlerESMBuild,
+    __SSR__: isNodeBuild || isBundlerESMBuild || isServerRenderer,
 
     // for compiler-sfc browser build inlined deps
     ...(isBrowserESMBuild

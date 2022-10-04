@@ -97,7 +97,7 @@ export { h } from './h'
 export { createVNode, cloneVNode, mergeProps, isVNode } from './vnode'
 // VNode types
 // 虚拟节点类型
-export { Fragment, Text, Comment, Static } from './vnode'
+export { Fragment, Text, Comment, Static, VNodeRef } from './vnode'
 // Built-in components
 // 内置组件
 export { Teleport, TeleportProps } from './components/Teleport'
@@ -236,6 +236,7 @@ export {
   ComponentOptionsWithArrayProps,
   ComponentCustomOptions,
   ComponentOptionsBase,
+  ComponentProvideOptions,
   RenderFunction,
   MethodOptions,
   ComputedOptions,
@@ -350,7 +351,7 @@ const _ssrUtils = {
 }
 
 /**
- * SSR utils for \@vue/server-renderer. Only exposed in cjs builds.
+ * SSR utils for \@vue/server-renderer. Only exposed in ssr-possible builds.
  * SSR工具应用于服务端渲染器
  * 仅仅暴露在cjs构建中
  * @internal

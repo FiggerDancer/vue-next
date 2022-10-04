@@ -70,13 +70,18 @@ export const transformOn: DirectiveTransform = (
       if (rawName.startsWith('vue:')) {
         rawName = `vnode-${rawName.slice(4)}`
       }
-      // for all event listeners, auto convert it to camelCase. See issue #2249
+      const eventString =
+        node.tagType === ElementTypes.COMPONENT ||
+        rawName.startsWith('vnode') ||
+        !/[A-Z]/.test(rawName)
+          ? // for component and vnode lifecycle event listeners, auto convert
+            // it to camelCase. See issue #2249
       // 对于所有事件监听器，自动转化它为驼峰式
-      eventName = createSimpleExpression(
-        toHandlerKey(camelize(rawName)),
-        true,
-        arg.loc
-      )
+            toHandlerKey(camelize(rawName))
+          : // preserve case for plain element listeners that have uppercase
+            // letters, as these may be custom elements' custom events
+            `on:${rawName}`
+      eventName = createSimpleExpression(eventString, true, arg.loc)
     } else {
       // #2388
       // 不是静态的则创建一个复杂表达式

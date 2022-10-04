@@ -296,12 +296,13 @@ const getPublicInstance = (
 }
 
 // 公共属性/** @type {*} */
-const publicPropertiesMap: PublicPropertiesMap = /*#__PURE__*/ 
+const publicPropertiesMap: PublicPropertiesMap =
+  // Move PURE marker to new line to workaround compiler discarding it
+  // due to type annotation
+  /*#__PURE__*/ 
 
 // 扩展
-extend(
-  Object.create(null),
-  {
+extend(Object.create(null), {
     /** 获取实例本身 */ 
     $: i => i,
     // 获取实例的dom元素
@@ -325,13 +326,12 @@ extend(
     // 选项
     $options: i => (__FEATURE_OPTIONS_API__ ? resolveMergedOptions(i) : i.type),
     // 强制更新
-    $forceUpdate: i => () => queueJob(i.update),
+    $forceUpdate: i => i.f || (i.f = () => queueJob(i.update)),
     // 下一步
-    $nextTick: i => nextTick.bind(i.proxy!),
+    $nextTick: i => i.n || (i.n = nextTick.bind(i.proxy!)),
     // 监视器
     $watch: i => (__FEATURE_OPTIONS_API__ ? instanceWatch.bind(i) : NOOP)
-  } as PublicPropertiesMap
-)
+  } as PublicPropertiesMap)
 
 // 兼容性，安装兼容性实例属性
 if (__COMPAT__) {
@@ -357,6 +357,8 @@ export interface ComponentRenderContext {
   // 组件内部实例
   _: ComponentInternalInstance
 }
+
+export const isReservedPrefix = (key: string) => key === '_' || key === '$'
 
 /**
  * 公共实例代理处理器
@@ -538,7 +540,9 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
           // 全局属性的值
           const val = globalProperties[key]
           // 如果是函数的返回函数执行的值，否则返回函数值
-          return isFunction(val) ? val.bind(instance.proxy) : val
+          return isFunction(val)
+            ? Object.assign(val.bind(instance.proxy), val)
+            : val
         }
       } else {
         // 返回属性
@@ -557,11 +561,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
         key.indexOf('__v') !== 0)
     ) {
       // 数据不是空对象且前缀是$或者_,且拥有该属性，警告
-      if (
-        data !== EMPTY_OBJ &&
-        (key[0] === '$' || key[0] === '_') &&
-        hasOwn(data, key)
-      ) {
+      if (data !== EMPTY_OBJ && isReservedPrefix(key[0]) && hasOwn(data, key)) {
         // 如果在data中定义的数据以$或_开头，会发出警告
         // 原因是$和_保留字符，不会做代理
         warn(
@@ -680,8 +680,8 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
     if (descriptor.get != null) {
       // invalidate key cache of a getter based property #5417
       // 使一个基于属性的访问器对应的缓存失效，因为0会false
-      target.$.accessCache[key] = 0;
-    } else if (hasOwn(descriptor,'value')) { // 不是访问器，也就是有值喽，将值通过set进行设置
+      target._.accessCache![key] = 0
+    } else if (hasOwn(descriptor, 'value')) { // 不是访问器，也就是有值喽，将值通过set进行设置
       // 描述中存在value值，给target设置value值
       this.set!(target, key, descriptor.value, null)
     }
@@ -820,7 +820,7 @@ export function exposeSetupStateOnRenderContext(
     if (!setupState.__isScriptSetup) {
       // 如果 key 以 $ 或者 _ 开头警告 并且阻断运行，
       // 因为 $ 和 _ 是 vue内部使用的前缀
-      if (key[0] === '$' || key[0] === '_') {
+      if (isReservedPrefix(key[0])) {
         warn(
           `setup() return property ${JSON.stringify(
             key

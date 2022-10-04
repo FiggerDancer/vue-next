@@ -43,6 +43,8 @@ export function markAttrsAccessed() {
   accessedAttrs = true
 }
 
+type SetRootFn = ((root: VNode) => void) | undefined
+
 /**
  * 渲染根组件
  * @param instance 
@@ -153,7 +155,7 @@ export function renderComponentRoot(
   // 并且它可能用于一个以注释为边缘的根元素，使其成为一个片段
   let root = result
   // 设置根
-  let setRoot: ((root: VNode) => void) | undefined = undefined
+  let setRoot: SetRootFn = undefined
   // 如果是开发者环境，存在补丁标记，且补丁标记为开发者根片段
   if (
     __DEV__ &&
@@ -272,6 +274,8 @@ export function renderComponentRoot(
           `The directives will not function as intended.`
       )
     }
+    // clone before mutating since the root may be a hoisted vnode
+    root = cloneVNode(root)
     root.dirs = root.dirs ? root.dirs.concat(vnode.dirs) : vnode.dirs
   }
   // inherit transition data
@@ -301,9 +305,7 @@ export function renderComponentRoot(
  * template into a fragment root, but we need to locate the single element
  * root for attrs and scope id processing.
  */
-const getChildRoot = (
-  vnode: VNode
-): [VNode, ((root: VNode) => void) | undefined] => {
+const getChildRoot = (vnode: VNode): [VNode, SetRootFn] => {
   const rawChildren = vnode.children as VNodeArrayChildren
   const dynamicChildren = vnode.dynamicChildren
   const childRoot = filterSingleRoot(rawChildren)
@@ -312,7 +314,7 @@ const getChildRoot = (
   }
   const index = rawChildren.indexOf(childRoot)
   const dynamicIndex = dynamicChildren ? dynamicChildren.indexOf(childRoot) : -1
-  const setRoot = (updatedRoot: VNode) => {
+  const setRoot: SetRootFn = (updatedRoot: VNode) => {
     rawChildren[index] = updatedRoot
     if (dynamicChildren) {
       if (dynamicIndex > -1) {

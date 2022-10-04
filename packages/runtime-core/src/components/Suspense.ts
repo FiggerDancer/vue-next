@@ -104,7 +104,9 @@ export const SuspenseImpl = {
 
 // Force-casted public typing for h and TSX props inference
 // 强制浇筑公共的类型为 h 和 tsx 属性接口
-export const Suspense = (__FEATURE_SUSPENSE__ ? SuspenseImpl : null) as any as {
+export const Suspense = (__FEATURE_SUSPENSE__
+  ? SuspenseImpl
+  : null) as unknown as {
   __isSuspense: true
   new (): { $props: VNodeProps & SuspenseProps }
 }

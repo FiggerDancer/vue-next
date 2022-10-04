@@ -36,7 +36,7 @@ export class ComputedRefImpl<T> {
   public readonly effect: ReactiveEffect<T>
 
   public readonly __v_isRef = true // 计算属性是ref
-  public readonly [ReactiveFlags.IS_READONLY]: boolean
+  public readonly [ReactiveFlags.IS_READONLY]: boolean = false
 
   public _dirty = true // 是否存在脏数据，就是数据变动没变动过
   public _cacheable: boolean // 缓存

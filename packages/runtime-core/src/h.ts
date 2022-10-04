@@ -129,7 +129,7 @@ export function h(
 export function h(
   type: typeof Teleport,
   props: RawProps & TeleportProps,
-  children: RawChildren
+  children: RawChildren | RawSlots
 ): VNode
 
 // suspense

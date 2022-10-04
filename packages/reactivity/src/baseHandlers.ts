@@ -30,6 +30,7 @@ import {
   makeMap
 } from '@vue/shared'
 import { isRef } from './ref'
+import { warn } from './warning'
 
 // 处理Object和Array的拦截器
 
@@ -43,7 +44,12 @@ const isNonTrackableKeys = /*#__PURE__*/ makeMap(`__proto__,__v_isRef,__isVue`)
  * 收集内置Symbol类型的所有symbol类型的键值
  */
 const builtInSymbols = new Set(
+  /*#__PURE__*/
   Object.getOwnPropertyNames(Symbol)
+    // ios10.x Object.getOwnPropertyNames(Symbol) can enumerate 'arguments' and 'caller'
+    // but accessing them on Symbol leads to TypeError because Symbol is a strict mode
+    // function
+    .filter(key => key !== 'arguments' && key !== 'caller')
     .map(key => (Symbol as any)[key])
     .filter(isSymbol)
 )
@@ -193,10 +199,9 @@ function createGetter(isReadonly = false, shallow = false) {
 
     // 如果是ref的话
     if (isRef(res)) {
-      // ref unwrapping - does not apply for Array + integer key.
+      // ref unwrapping - skip unwrap for Array + integer key.
       // 如果不是数组或者key不是整型字符串，就需要对ref进行拆包并进行返回
-      const shouldUnwrap = !targetIsArray || !isIntegerKey(key)
-      return shouldUnwrap ? res.value : res
+      return targetIsArray && isIntegerKey(key) ? res : res.value
     }
 
     // 如果不是浅拷贝
@@ -249,6 +254,7 @@ function createSetter(shallow = false) {
         value = toRaw(value)
         // 旧原始值
         oldValue = toRaw(oldValue)
+        value = toRaw(value)
       }
       // 非数组、旧值是ref且新值不是ref
       if (!isArray(target) && isRef(oldValue) && !isRef(value)) {
@@ -353,7 +359,7 @@ export const readonlyHandlers: ProxyHandler<object> = {
   get: readonlyGet,
   set(target, key) {
     if (__DEV__) {
-      console.warn(
+      warn(
         `Set operation on key "${String(key)}" failed: target is readonly.`,
         target
       )
@@ -362,7 +368,7 @@ export const readonlyHandlers: ProxyHandler<object> = {
   },
   deleteProperty(target, key) {
     if (__DEV__) {
-      console.warn(
+      warn(
         `Delete operation on key "${String(key)}" failed: target is readonly.`,
         target
       )

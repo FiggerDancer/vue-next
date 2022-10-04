@@ -125,7 +125,13 @@ export function processSlotOutlet(
 
   // 非插槽名称props
   if (nonNameProps.length > 0) {
-    const { props, directives } = buildProps(node, context, nonNameProps)
+    const { props, directives } = buildProps(
+      node,
+      context,
+      nonNameProps,
+      false,
+      false
+    )
     slotProps = props
 
     // 指令长度

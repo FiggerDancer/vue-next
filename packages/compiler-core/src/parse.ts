@@ -394,44 +394,51 @@ function parseChildren(
       const node = nodes[i]
       // 不是pre, <pre>中的内容需要原封不动保留
       // 节点为文本
-      if (!context.inPre && node.type === NodeTypes.TEXT) {
-        // 文本内容中不包含除换行制表空格之外的字符
+      if (node.type === NodeTypes.TEXT) {
+        if (!context.inPre) {
+          // 文本内容中不包含除换行制表空格之外的字符
         if (!/[^\t\r\n\f ]/.test(node.content)) {
-          // 匹配空白字符
+            // 匹配空白字符
           const prev = nodes[i - 1]
-          const next = nodes[i + 1]
-          // Remove if:
-          // - the whitespace is the first or last node, or:
-          // - (condense mode) the whitespace is adjacent to a comment, or:
-          // - (condense mode) the whitespace is between two elements AND contains newline
-          // 如果符合以下条件
+            const next = nodes[i + 1]
+            // Remove if:
+            // - the whitespace is the first or last node, or:
+            // - (condense mode) the whitespace is adjacent to a comment, or:
+            // - (condense mode) the whitespace is between two elements AND contains newline
+            // 如果符合以下条件
           // 1. 如果空白字符是开头或者结尾节点
           // 2. 或者空白字符与注释节点相连
           // 3. 或者空白字符在两个元素之间并包含换行符
           // 那么这些空白字符节点都应该被移除
           if (
-            !prev ||
-            !next ||
-            (shouldCondense &&
-              (prev.type === NodeTypes.COMMENT ||
-                next.type === NodeTypes.COMMENT ||
-                (prev.type === NodeTypes.ELEMENT &&
-                  next.type === NodeTypes.ELEMENT &&
-                  /[\r\n]/.test(node.content))))
-          ) {
-            // 节点置为空，最后删除
+              !prev ||
+              !next ||
+              (shouldCondense &&
+                (prev.type === NodeTypes.COMMENT ||
+                  next.type === NodeTypes.COMMENT ||
+                  (prev.type === NodeTypes.ELEMENT &&
+                    next.type === NodeTypes.ELEMENT &&
+                    /[\r\n]/.test(node.content))))
+            ) {
+              // 节点置为空，最后删除
             removedWhitespace = true
-            nodes[i] = null as any
-          } else {
-            // Otherwise, the whitespace is condensed into a single space
-            // 否则，空格被压缩成一个单独的空格
+              nodes[i] = null as any
+            } else {
+              // Otherwise, the whitespace is condensed into a single space
+              // 否则，空格被压缩成一个单独的空格
             node.content = ' '
-          }
-        } else if (shouldCondense) {
-          // in condense mode, consecutive whitespaces in text are condensed
-          // down to a single space.
-          // 在压缩模式，连续的空格在文本被压缩成一个单独的空格
+            }
+          } else if (shouldCondense) {
+            // in condense mode, consecutive whitespaces in text are condensed
+            // down to a single space.
+            // 在压缩模式，连续的空格在文本被压缩成一个单独的空格
           node.content = node.content.replace(/[\t\r\n\f ]+/g, ' ')
+          }
+        } else {
+          // #6410 normalize windows newlines in <pre>:
+          // in SSR, browsers normalize server-rendered \r\n into a single \n
+          // in the DOM
+          node.content = node.content.replace(/\r\n/g, '\n')
         }
       }
       // Remove comment nodes if desired by configuration.

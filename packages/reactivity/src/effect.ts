@@ -142,6 +142,10 @@ export class ReactiveEffect<T = any> {
    * @internal
    */
   allowRecurse?: boolean // 允许嵌套
+  /**
+   * @internal
+   */
+  private deferStop?: boolean
 
   /**
    * 监听停止
@@ -238,6 +242,10 @@ export class ReactiveEffect<T = any> {
       // 恢复 shouldTrack 开启之前的状态
       shouldTrack = lastShouldTrack 
       this.parent = undefined
+
+      if (this.deferStop) {
+        this.stop()
+      }
     }
   }
   /**
@@ -245,7 +253,10 @@ export class ReactiveEffect<T = any> {
    */
   stop() {
     // 将激活状态置为false，并且清除依赖中相应的副作用函数，触发onStop回调函数
-    if (this.active) {
+    // stopped while running itself - defer the cleanup
+    if (activeEffect === this) {
+      this.deferStop = true
+    } else if (this.active) {
       cleanupEffect(this)
       if (this.onStop) {
         this.onStop()
@@ -464,14 +475,10 @@ export function trackEffects(
     activeEffect!.deps.push(dep)
     // 下面都是调试信息，当监听收集依赖时触发
     if (__DEV__ && activeEffect!.onTrack) {
-      activeEffect!.onTrack(
-        Object.assign(
-          {
-            effect: activeEffect!
-          },
-          debuggerEventExtraInfo
-        )
-      )
+      activeEffect!.onTrack({
+        effect: activeEffect!,
+        ...debuggerEventExtraInfo!
+      })
     }
   }
 }
@@ -596,19 +603,34 @@ export function triggerEffects(
 ) {
   // spread into array for stabilization
   // 为了保持稳定性，使用扩展运算符把非数组转化为数组
-  for (const effect of isArray(dep) ? dep : [...dep]) {
+  const effects = isArray(dep) ? dep : [...dep]
+  for (const effect of effects) {
+    if (effect.computed) {
+      triggerEffect(effect, debuggerEventExtraInfo)
+    }
+  }
+  for (const effect of effects) {
+    if (!effect.computed) {
+      triggerEffect(effect, debuggerEventExtraInfo)
+    }
+  }
+}
+
+function triggerEffect(
+  effect: ReactiveEffect,
+  debuggerEventExtraInfo?: DebuggerEventExtraInfo
+) {
     // 当前副作用函数和要执行的副作用函数不同或者允许嵌套副作用函数执行
-    if (effect !== activeEffect || effect.allowRecurse) {
+  if (effect !== activeEffect || effect.allowRecurse) {
       // 调试使用
-      if (__DEV__ && effect.onTrigger) {
-        effect.onTrigger(extend({ effect }, debuggerEventExtraInfo))
-      }
+    if (__DEV__ && effect.onTrigger) {
+      effect.onTrigger(extend({ effect }, debuggerEventExtraInfo))
+    }
       // 有调度器执行调度器，否则执行匿名副作用函数本身
-      if (effect.scheduler) {
-        effect.scheduler()
-      } else {
-        effect.run()
-      }
+    if (effect.scheduler) {
+      effect.scheduler()
+    } else {
+      effect.run()
     }
   }
 }

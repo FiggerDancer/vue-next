@@ -16,9 +16,11 @@ import { warn } from '../warning'
 import { isKeepAlive } from './KeepAlive'
 import { toRaw } from '@vue/reactivity'
 import { callWithAsyncErrorHandling, ErrorCodes } from '../errorHandling'
-import { ShapeFlags, PatchFlags } from '@vue/shared'
+import { ShapeFlags, PatchFlags, isArray } from '@vue/shared'
 import { onBeforeUnmount, onMounted } from '../apiLifecycle'
 import { RendererElement } from '../renderer'
+
+type Hook<T = () => void> = T | T[]
 
 /**
  * 基础过渡属性
@@ -46,31 +48,29 @@ export interface BaseTransitionProps<HostElement = RendererElement> {
   // are camelized.
   // 钩子，使用驼峰写法在渲染函数和jsx中是更简单易用的
   // 在模板里这些将被成类似 @before-enter，它们作为属性时会驼峰化
-  onBeforeEnter?: (el: HostElement) => void
-  onEnter?: (el: HostElement, done: () => void) => void
-  onAfterEnter?: (el: HostElement) => void
-  onEnterCancelled?: (el: HostElement) => void
+  onBeforeEnter?: Hook<(el: HostElement) => void>
+  onEnter?: Hook<(el: HostElement, done: () => void) => void>
+  onAfterEnter?: Hook<(el: HostElement) => void>
+  onEnterCancelled?: Hook<(el: HostElement) => void>
   // leave
   // 离开
-  onBeforeLeave?: (el: HostElement) => void
-  onLeave?: (el: HostElement, done: () => void) => void
-  onAfterLeave?: (el: HostElement) => void
-  onLeaveCancelled?: (el: HostElement) => void // only fired in persisted mode
+  onBeforeLeave?: Hook<(el: HostElement) => void>
+  onLeave?: Hook<(el: HostElement, done: () => void) => void>
+  onAfterLeave?: Hook<(el: HostElement) => void>
+  onLeaveCancelled?: Hook<(el: HostElement) => void> // only fired in persisted mode
   // 仅仅被触发在永久模式
   // appear
   // 第一次渲染
-  onBeforeAppear?: (el: HostElement) => void
-  onAppear?: (el: HostElement, done: () => void) => void
-  onAfterAppear?: (el: HostElement) => void
-  onAppearCancelled?: (el: HostElement) => void
+  onBeforeAppear?: Hook<(el: HostElement) => void>
+  onAppear?: Hook<(el: HostElement, done: () => void) => void>
+  onAfterAppear?: Hook<(el: HostElement) => void>
+  onAppearCancelled?: Hook<(el: HostElement) => void>
 }
 
 /**
  * 过渡钩子
  */
-export interface TransitionHooks<
-  HostElement extends RendererElement = RendererElement
-> {
+export interface TransitionHooks<HostElement = RendererElement> {
   mode: BaseTransitionProps['mode']
   persisted: boolean
   beforeEnter(el: HostElement): void
@@ -89,9 +89,9 @@ export interface TransitionHooks<
 }
 
 /** 过渡钩子调用者 */
-export type TransitionHookCaller = (
-  hook: ((el: any) => void) | Array<(el: any) => void> | undefined,
-  args?: any[]
+export type TransitionHookCaller = <T extends any[] = [el: any]>(
+  hook: Hook<(...args: T) => void> | undefined,
+  args?: T
 ) => void
 
 /** 等待回调 */ 
@@ -197,13 +197,26 @@ const BaseTransitionImpl: ComponentOptions = {
         return
       }
 
-      // warn multiple elements
+      let child: VNode = children[0]
+      if (children.length > 1) {
+        let hasFound = false
+        // locate first non-comment child
+        for (const c of children) {
+          if (c.type !== Comment) {
       // 多个元素时进行警告
-      if (__DEV__ && children.length > 1) {
-        warn(
-          '<transition> can only be used on a single element or component. Use ' +
-            '<transition-group> for lists.'
-        )
+            if (__DEV__ && hasFound) {
+              // warn more than one non-comment child
+              warn(
+                '<transition> can only be used on a single element or component. ' +
+                  'Use <transition-group> for lists.'
+              )
+              break
+            }
+            child = c
+            hasFound = true
+            if (!__DEV__) break
+          }
+        }
       }
 
       // there's no need to track reactivity for these props so use the raw
@@ -216,14 +229,13 @@ const BaseTransitionImpl: ComponentOptions = {
       if (
         __DEV__ &&
         mode &&
-        mode !== 'in-out' && mode !== 'out-in' && mode !== 'default'
+        mode !== 'in-out' &&
+        mode !== 'out-in' &&
+        mode !== 'default'
       ) {
         warn(`invalid <transition> mode: ${mode}`)
       }
 
-      // at this point children has a guaranteed length of 1.
-      // 此时子元素的保证长度为1。
-      const child = children[0]
       if (state.isLeaving) {
         return emptyPlaceholder(child)
       }
@@ -347,7 +359,7 @@ if (__COMPAT__) {
  * 导出公共类型对于h函数或者tsx引用
  * 也为了避免在产生的d.ts文件时生成内联import()
  */
-export const BaseTransition = BaseTransitionImpl as any as {
+export const BaseTransition = BaseTransitionImpl as unknown as {
   new (): {
     $props: BaseTransitionProps<any>
   }
@@ -417,6 +429,19 @@ export function resolveTransitionHooks(
         ErrorCodes.TRANSITION_HOOK,
         args
       )
+  }
+
+  const callAsyncHook = (
+    hook: Hook<(el: any, done: () => void) => void>,
+    args: [TransitionElement, () => void]
+  ) => {
+    const done = args[1]
+    callHook(hook, args)
+    if (isArray(hook)) {
+      if (hook.every(hook => hook.length <= 1)) done()
+    } else if (hook.length <= 1) {
+      done()
+    }
   }
 
   // 各种钩子
@@ -493,12 +518,7 @@ export function resolveTransitionHooks(
         el._enterCb = undefined
       })
       if (hook) {
-        // 调用进入钩子
-        hook(el, done)
-        // onEnter钩子参数不大于1
-        if (hook.length <= 1) {
-          done()
-        }
+        callAsyncHook(hook, [el, done])
       } else {
         // 没有钩子则直接
         done()
@@ -543,12 +563,7 @@ export function resolveTransitionHooks(
       // 将节点缓存表示正在离开中
       leavingVNodesCache[key] = vnode
       if (onLeave) {
-        // 离开中
-        onLeave(el, done)
-        // 离开的参数不大于1
-        if (onLeave.length <= 1) {
-          done()
-        }
+        callAsyncHook(onLeave, [el, done])
       } else {
         done()
       }
@@ -608,12 +623,18 @@ export function setTransitionHooks(vnode: VNode, hooks: TransitionHooks) {
  */
 export function getTransitionRawChildren(
   children: VNode[],
-  keepComment: boolean = false
+  keepComment: boolean = false,
+  parentKey?: VNode['key']
 ): VNode[] {
   let ret: VNode[] = []
   let keyedFragmentCount = 0
   for (let i = 0; i < children.length; i++) {
-    const child = children[i]
+    let child = children[i]
+    // #5360 inherit parent key in case of <template v-for>
+    const key =
+      parentKey == null
+        ? child.key
+        : String(parentKey) + String(child.key != null ? child.key : i)
     // handle fragment children case, e.g. v-for
     // 处理片段自子节点的情况：例如v-for
     if (child.type === Fragment) {
@@ -623,13 +644,13 @@ export function getTransitionRawChildren(
       keyedFragmentCount++
       // 递归获取子节点中的节点
       ret = ret.concat(
-        getTransitionRawChildren(child.children as VNode[], keepComment)
+        getTransitionRawChildren(child.children as VNode[], keepComment, key)
       )
     }
     // comment placeholders should be skipped, e.g. v-if
     // 注释占位符应该被跳过，例如v-if
     else if (keepComment || child.type !== Comment) {
-      ret.push(child)
+      ret.push(key != null ? cloneVNode(child, { key }) : child)
     }
   }
   // #1126 if a transition children list contains multiple sub fragments, these

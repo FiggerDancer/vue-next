@@ -36,7 +36,7 @@ declare module '@vue/reactivity' {
 /**
  * 与平台渲染相关的一些配置，比如更新属性、操作DOM的函数等
  */
-const rendererOptions = extend({ patchProp }, nodeOps)
+const rendererOptions = /*#__PURE__*/ extend({ patchProp }, nodeOps)
 
 // lazy create the renderer - this makes core renderer logic tree-shakable
 // in case the user only imports reactivity utilities from Vue.

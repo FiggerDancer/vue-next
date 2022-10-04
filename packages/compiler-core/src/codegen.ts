@@ -61,6 +61,8 @@ import { ImportItem } from './transform'
  */
 const PURE_ANNOTATION = `/*#__PURE__*/`
 
+const aliasHelper = (s: symbol) => `${helperNameMap[s]}: _${helperNameMap[s]}`
+
 /**
  * 代码生成节点
  * 模板子节点|JS子节点|SSR代码生成节点
@@ -339,11 +341,7 @@ export function generate(
     // 函数模式的const声明应该放在with块中
     // 此外，它们应该重新命名，以避免与用户属性冲突 加个_
     if (hasHelpers) {
-      push(
-        `const { ${ast.helpers
-          .map(s => `${helperNameMap[s]}: _${helperNameMap[s]}`)
-          .join(', ')} } = _Vue`
-      )
+      push(`const { ${ast.helpers.map(aliasHelper).join(', ')} } = _Vue`)
       // 换行
       push(`\n`)
       // 新起一行
@@ -452,7 +450,6 @@ function genFunctionPreamble(ast: RootNode, context: CodegenContext) {
       ? `require(${JSON.stringify(runtimeModuleName)})`
       : runtimeGlobalName
   // 帮助函数别名
-  const aliasHelper = (s: symbol) => `${helperNameMap[s]}: _${helperNameMap[s]}`
   // Generate const declaration for helpers
   // In prefix mode, we place the const declaration at top so it's done
   // only once; But if we not prefixing, we place the declaration inside the

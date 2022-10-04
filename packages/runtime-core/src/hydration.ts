@@ -30,7 +30,7 @@ import { isAsyncWrapper } from './apiAsyncComponent'
  */
 export type RootHydrateFunction = (
   vnode: VNode<Node, Element>,
-  container: Element | ShadowRoot
+  container: (Element | ShadowRoot) & { _vnode?: VNode }
 ) => void
 
 /**
@@ -84,7 +84,15 @@ export function createHydrationFunctions(
   const {
     mt: mountComponent,
     p: patch,
-    o: { patchProp, nextSibling, parentNode, remove, insert, createComment }
+    o: {
+      patchProp,
+      createText,
+      nextSibling,
+      parentNode,
+      remove,
+      insert,
+      createComment
+    }
   } = rendererInternals
 
   // 注水
@@ -102,6 +110,7 @@ export function createHydrationFunctions(
       patch(null, vnode, container)
       // 清空异步队列
       flushPostFlushCbs()
+      container._vnode = vnode
       return
     }
     // 有子节点
@@ -111,6 +120,7 @@ export function createHydrationFunctions(
     hydrateNode(container.firstChild!, vnode, null, null, null)
     // 执行异步队列
     flushPostFlushCbs()
+    container._vnode = vnode
     // 如果忽略匹配机制且不是测试环境
     if (hasMismatch && !__TEST__) {
       // this error should show up in production
@@ -156,11 +166,16 @@ export function createHydrationFunctions(
       )
 
     // type， ref， shapeFlag
-    const { type, ref, shapeFlag } = vnode
+    const { type, ref, shapeFlag, patchFlag } = vnode
     // 节点类型
-    const domType = node.nodeType
+    let domType = node.nodeType
     // vnode的节点元素设置
     vnode.el = node
+
+    if (patchFlag === PatchFlags.BAIL) {
+      optimized = false
+      vnode.dynamicChildren = null
+    }
 
     // 下一个节点
     let nextNode: Node | null = null
@@ -171,8 +186,15 @@ export function createHydrationFunctions(
       case Text:
         // 然而实际渲染到html上的如果不是文本
         if (domType !== DOMNodeTypes.TEXT) {
-          // 文本节点，需要进行忽略匹配机制
+          // #5728 empty text node inside a slot can cause hydration failure
+          // because the server rendered HTML won't contain a text node
+          if (vnode.children === '') {
+            insert((vnode.el = createText('')), parentNode(node)!, node)
+            nextNode = node
+          } else {
+            // 文本节点，需要进行忽略匹配机制
           nextNode = onMismatch()
+          }
         } else {
           // 两边都是文本节点，但是dom上的文本与vnode上的内容不相同
           if ((node as Text).data !== vnode.children) {
@@ -207,10 +229,13 @@ export function createHydrationFunctions(
       // 静态节点
       case Static:
         // 不是元素
-        if (domType !== DOMNodeTypes.ELEMENT) {
+        if (isFragmentStart) {
+          // entire template is static but SSRed as a fragment
           // 忽略处理
-          nextNode = onMismatch()
-        } else {
+          node = nextSibling(node)!
+          domType = node.nodeType
+        }
+        if (domType === DOMNodeTypes.ELEMENT || domType === DOMNodeTypes.TEXT) {
           // 是元素
           // determine anchor, adopt content
           // 决定是锚点，适配内容
@@ -225,7 +250,10 @@ export function createHydrationFunctions(
             // 需要使用内容
             if (needToAdoptContent)
               // vnode的子节点添加上
-              vnode.children += (nextNode as Element).outerHTML
+              vnode.children +=
+                nextNode.nodeType === DOMNodeTypes.ELEMENT
+                  ? (nextNode as Element).outerHTML
+                  : (nextNode as Text).data
             if (i === vnode.staticCount! - 1) {
               // 达到最后一个节点时，将锚点设置为下一个节点
               vnode.anchor = nextNode
@@ -234,7 +262,9 @@ export function createHydrationFunctions(
             nextNode = nextSibling(nextNode)!
           }
           // 返回下一个节点
-          return nextNode
+          return isFragmentStart ? nextSibling(nextNode) : nextNode
+        } else {
+          onMismatch()
         }
         break
       // 片段
@@ -310,6 +340,15 @@ export function createHydrationFunctions(
           nextNode = isFragmentStart
             ? locateClosingAsyncAnchor(node)
             : nextSibling(node)
+
+          // #4293 teleport as component root
+          if (
+            nextNode &&
+            isComment(nextNode) &&
+            nextNode.data === 'teleport end'
+          ) {
+            nextNode = nextSibling(nextNode)
+          }
 
           // #3787
           // if component is async, it may get moved / unmounted before its

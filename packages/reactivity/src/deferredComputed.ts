@@ -8,7 +8,7 @@ import { trackRefValue, triggerRefValue } from './ref'
 
 // 其实原理就是将要调度的副作用函数放到队列里，然后当前宏任务结束，微任务执行时，异步调用。直到执行完毕
 
-const tick = Promise.resolve()
+const tick = /*#__PURE__*/ Promise.resolve()
 const queue: any[] = []
 let queued = false // 一个标记
 

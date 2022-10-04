@@ -118,7 +118,10 @@ function resolveAsset(
     // explicit self name has highest priority
     // 明确的名称有最高的优先级
     if (type === COMPONENTS) {
-      const selfName = getComponentName(Component)
+      const selfName = getComponentName(
+        Component,
+        false /* do not include inferred name to avoid breaking existing code */
+      )
       if (
         selfName &&
         (selfName === name ||

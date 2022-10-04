@@ -211,7 +211,7 @@ type InferDefault<P, T> = T extends
   | boolean
   | symbol
   | Function
-  ? T
+  ? T | ((props: P) => T)
   : (props: P) => T
 
 /**

@@ -11,7 +11,7 @@ import { createDOMCompilerError, DOMErrorCodes } from '../errors'
 /**
  * transition警告
  */
-export const warnTransitionChildren: NodeTransform = (node, context) => {
+export const transformTransition: NodeTransform = (node, context) => {
   if (
     node.type === NodeTypes.ELEMENT &&
     node.tagType === ElementTypes.COMPONENT
@@ -21,7 +21,12 @@ export const warnTransitionChildren: NodeTransform = (node, context) => {
     if (component === TRANSITION) {
       return () => {
         // 如果有多个子节点警告
-        if (node.children.length && hasMultipleChildren(node)) {
+        if (!node.children.length) {
+          return
+        }
+
+        // warn multiple transition children
+        if (hasMultipleChildren(node)) {
           context.onError(
             createDOMCompilerError(
               DOMErrorCodes.X_TRANSITION_INVALID_CHILDREN,
@@ -32,6 +37,22 @@ export const warnTransitionChildren: NodeTransform = (node, context) => {
               }
             )
           )
+        }
+
+        // check if it's s single child w/ v-show
+        // if yes, inject "persisted: true" to the transition props
+        const child = node.children[0]
+        if (child.type === NodeTypes.ELEMENT) {
+          for (const p of child.props) {
+            if (p.type === NodeTypes.DIRECTIVE && p.name === 'show') {
+              node.props.push({
+                type: NodeTypes.ATTRIBUTE,
+                name: 'persisted',
+                value: undefined,
+                loc: node.loc
+              })
+            }
+          }
         }
       }
     }

@@ -35,7 +35,8 @@ import {
   applyOptions,
   ComponentOptions,
   ComputedOptions,
-  MethodOptions
+  MethodOptions,
+  resolveMergedOptions
 } from './componentOptions'
 import {
   EmitsOptions,
@@ -111,6 +112,10 @@ export interface ComponentInternalOptions {
    * 这个应该被公开，这样devtools就可以利用它
    */
   __file?: string
+  /**
+   * name inferred from filename
+   */
+  __name?: string
 }
 
 // 组件函数
@@ -562,6 +567,15 @@ export interface ComponentInternalInstance {
    * @internal
    */
   [LifecycleHooks.SERVER_PREFETCH]: LifecycleHook<() => Promise<unknown>>
+
+  /**
+   * For caching bound $forceUpdate on public proxy access
+   */
+  f?: () => void
+  /**
+   * For caching bound $nextTick on public proxy access
+   */
+  n?: () => Promise<void>
 }
 
 // 空上下文件节点
@@ -614,7 +628,7 @@ export function createComponentInstance(
     accessCache: null!,
     renderCache: [],
 
-    // local resovled assets
+    // local resolved assets
     // 当地急需解决的资源
     components: null,
     directives: null,
@@ -864,7 +878,6 @@ function setupStatefulComponent(
     // 调用setup返回的是一个promise
     if (isPromise(setupResult)) {
       setupResult.then(unsetCurrentInstance, unsetCurrentInstance)
-
       if (isSSR) {
         // return the promise so server-renderer can wait on it
         // 返回promise，以便服务器渲染器可以等待它
@@ -883,6 +896,15 @@ function setupStatefulComponent(
         // async setup返回Promise。
         // 在这里保释，等待再次进入。
         instance.asyncDep = setupResult
+        if (__DEV__ && !instance.suspense) {
+          const name = Component.name ?? 'Anonymous'
+          warn(
+            `Component <${name}>: setup function returned a promise, but no ` +
+              `<Suspense> boundary was found in the parent component tree. ` +
+              `A component with async setup() must be nested in a <Suspense> ` +
+              `in order to be rendered.`
+          )
+        }
       } else if (__DEV__) { // 开发者环境，如果不支持异步setup
         warn(
           `setup() returned a Promise, but the version of Vue you are using ` +
@@ -1039,7 +1061,8 @@ export function finishComponentSetup(
         (__COMPAT__ &&
           instance.vnode.props &&
           instance.vnode.props['inline-template']) ||
-        Component.template
+        Component.template ||
+        resolveMergedOptions(instance).template
       // 可以获取到模板
       if (template) {
         // 开发者模式
@@ -1068,6 +1091,7 @@ export function finishComponentSetup(
           // 将运行时compat配置传递给编译器
           finalCompilerOptions.compatConfig = Object.create(globalCompatConfig)
           if (Component.compatConfig) {
+            // @ts-expect-error types are not compatible
             extend(finalCompilerOptions.compatConfig, Component.compatConfig)
           }
         }
@@ -1251,11 +1275,12 @@ const classify = (str: string): string =>
  * @returns 
  */
 export function getComponentName(
-  Component: ConcreteComponent
-): string | undefined {
+  Component: ConcreteComponent,
+  includeInferred = true
+): string | false | undefined {
   return isFunction(Component)
     ? Component.displayName || Component.name
-    : Component.name
+    : Component.name || (includeInferred && Component.__name)
 }
 
 /* istanbul ignore next */

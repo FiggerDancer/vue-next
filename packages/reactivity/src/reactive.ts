@@ -11,7 +11,7 @@ import {
   shallowCollectionHandlers,
   shallowReadonlyCollectionHandlers
 } from './collectionHandlers'
-import { UnwrapRefSimple, Ref } from './ref'
+import type { UnwrapRefSimple, Ref, RawSymbol } from './ref'
 
 // 实现响应式的核心
 
@@ -258,7 +258,7 @@ function createReactiveObject(
   if (existingProxy) {
     return existingProxy
   }
-  // only a whitelist of value types can be observed.
+  // only specific value types can be observed.
   // 仅仅白名单上的类型的target可以监听，object、Array、collection(Set,Map,WeakMap,WeakSet)
   const targetType = getTargetType(target)
   if (targetType === TargetType.INVALID) {
@@ -314,7 +314,9 @@ export function toRaw<T>(observed: T): T {
 }
 
 // 标记原始值，这些值是可以跳过响应式的
-export function markRaw<T extends object>(value: T): T {
+export function markRaw<T extends object>(
+  value: T
+): T & { [RawSymbol]?: true } {
   // 定义这个value值为原始值，这样在做响应式时，可以直接跳过
   def(value, ReactiveFlags.SKIP, true)
   return value

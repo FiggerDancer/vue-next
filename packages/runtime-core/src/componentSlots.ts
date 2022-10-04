@@ -102,6 +102,10 @@ const normalizeSlot = (
   rawSlot: Function,
   ctx: ComponentInternalInstance | null | undefined
 ): Slot => {
+  if ((rawSlot as any)._n) {
+    // already normalized - #5353
+    return rawSlot as Slot
+  }
   /**
    * 序列化带有实例
    */

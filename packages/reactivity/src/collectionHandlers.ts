@@ -40,13 +40,15 @@ function get(
   const rawTarget = toRaw(target)
   // 返回key最原始的值
   const rawKey = toRaw(key)
-  // 只读的无需跟踪
+  if (!isReadonly) {
+    // 只读的无需跟踪
   // 如果key不等于key的原始值，则先找下key跟踪
   if (key !== rawKey) {
-    !isReadonly && track(rawTarget, TrackOpTypes.GET, key)
-  }
+      track(rawTarget, TrackOpTypes.GET, key)
+    }
   // 跟踪key后，rawKey也还是要跟踪的
-  !isReadonly && track(rawTarget, TrackOpTypes.GET, rawKey)
+    track(rawTarget, TrackOpTypes.GET, rawKey)
+  }
   // 原始值是否包含某属性
   const { has } = getProto(rawTarget)
   // 包装方法，包装的原因是因为对于Map元素来说，他本来只对Map做了Proxy拦截处理，内部的元素其实没有处理，所以在返回内部的值时要做一层响应式的包装（加拦截器）
@@ -71,10 +73,12 @@ function has(this: CollectionTypes, key: unknown, isReadonly = false): boolean {
   const target = (this as any)[ReactiveFlags.RAW]
   const rawTarget = toRaw(target)
   const rawKey = toRaw(key)
-  if (key !== rawKey) {
-    !isReadonly && track(rawTarget, TrackOpTypes.HAS, key)
+  if (!isReadonly) {
+    if (key !== rawKey) {
+      track(rawTarget, TrackOpTypes.HAS, key)
+    }
+    track(rawTarget, TrackOpTypes.HAS, rawKey)
   }
-  !isReadonly && track(rawTarget, TrackOpTypes.HAS, rawKey)
   return key === rawKey // key值等于key的原始值
     ? target.has(key) // 从target中找
     : target.has(key) || target.has(rawKey) // 先从target找key，再从target中找rawKey

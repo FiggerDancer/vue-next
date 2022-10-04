@@ -42,6 +42,7 @@ import { setTransitionHooks } from './BaseTransition'
 import { ComponentRenderContext } from '../componentPublicInstance'
 import { devtoolsComponentAdded } from '../devtools'
 import { isAsyncWrapper } from '../apiAsyncComponent'
+import { isSuspense } from './Suspense'
 
 /** 
  * 正则匹配类型
@@ -142,8 +143,11 @@ const KeepAliveImpl: ComponentOptions = {
     // for KeepAlive, we just need to render its children
     // 如果内部渲染没有被注册，就意味着这是个服务器渲染
     // 对于keepAlive来说，我们仅仅需要渲染它的子节点
-    if (!sharedContext.renderer) {
-      return slots.default
+    if (__SSR__ && !sharedContext.renderer) {
+      return () => {
+        const children = slots.default && slots.default()
+        return children && children.length === 1 ? children[0] : children
+      }
     }
 
     // 缓存
@@ -449,7 +453,7 @@ const KeepAliveImpl: ComponentOptions = {
       vnode.shapeFlag |= ShapeFlags.COMPONENT_SHOULD_KEEP_ALIVE
 
       current = vnode
-      return rawVNode
+      return isSuspense(rawVNode.type) ? rawVNode : vnode
     }
   }
 }

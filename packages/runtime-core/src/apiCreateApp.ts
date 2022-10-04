@@ -219,12 +219,16 @@ let uid = 0
  * @returns 
   */
 export function createAppAPI<HostElement>(
-  render: RootRenderFunction,
+  render: RootRenderFunction<HostElement>,
   hydrate?: RootHydrateFunction
 ): CreateAppFunction<HostElement> {
   // rootComponent就是用户传入的根组件
   /** createApp函数接收两个参数：根组件的对象和根props */
   return function createApp(rootComponent, rootProps = null) {
+    if (!isFunction(rootComponent)) {
+      rootComponent = { ...rootComponent }
+    }
+
     // 根节点属性不为undefined或者0  且  rootProps 不是对象，则警告
     if (rootProps != null && !isObject(rootProps)) {
       __DEV__ && warn(`root props passed to app.mount() must be an object.`)
@@ -374,6 +378,14 @@ export function createAppAPI<HostElement>(
       ): any {
         // 初始化流程
         if (!isMounted) {
+          // #5571
+          if (__DEV__ && (rootContainer as any).__vue_app__) {
+            warn(
+              `There is already an app instance mounted on the host container.\n` +
+                ` If you want to mount another app on the same host container,` +
+                ` you need to unmount the previous app by calling \`app.unmount()\` first.`
+            )
+          }
           // 创建根组件的vnode
           const vnode = createVNode(
             rootComponent as ConcreteComponent,
@@ -464,10 +476,8 @@ export function createAppAPI<HostElement>(
               `It will be overwritten with the new value.`
           )
         }
-        // TypeScript doesn't allow symbols as index type
-        // ts不支持symbol作为索引类型
-        // https://github.com/Microsoft/TypeScript/issues/24587
-        context.provides[key as string] = value
+
+        context.provides[key as string | symbol] = value
 
         return app
       }

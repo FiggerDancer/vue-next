@@ -64,65 +64,62 @@ export function patchDOMProp(
     return
   }
 
+  let needRemove = false
   // value为空字符串或者value是null或undefined, 移除属性
   if (value === '' || value == null) {
     const type = typeof el[key]
     if (type === 'boolean') {
       // e.g. <select multiple> compiles to { multiple: '' }
       // 例如:<select multiple>编译为{multiple: "}
-      el[key] = includeBooleanAttr(value)
-      return
+      value = includeBooleanAttr(value)
     } else if (value == null && type === 'string') {
       // e.g. <div :id="null">
       // 例如：<div :id="null">
-      el[key] = ''
-      el.removeAttribute(key)
-      return
+      value = ''
+      needRemove = true
     } else if (type === 'number') {
       // e.g. <img :width="null">
-      // the value of some IDL attr must be greater than 0, e.g. input.size = 0 -> error
+      value = 0
       // 例如：<img :width="null">
       // 某些IDL属性的值必须大于0，例如input.size = 0 ->错误
-      try {
-        el[key] = 0
-      } catch {}
-      el.removeAttribute(key)
-      return
+      needRemove = true
     }
-  }
-
-  // 兼容vue2.x，如果value是false，该值的类型应为string或者number，先修改为 0或者空字符串，然后移除属性
+  } else {
+    // 兼容vue2.x，如果value是false，该值的类型应为string或者number，先修改为 0或者空字符串，然后移除属性
   if (
-    __COMPAT__ &&
-    value === false &&
-    // 判断是否启用了属性false值验证
+      __COMPAT__ &&
+      value === false &&
+      // 判断是否启用了属性false值验证
     compatUtils.isCompatEnabled(
-      DeprecationTypes.ATTR_FALSE_VALUE,
-      parentComponent
-    )
-  ) {
-    // 类型
+        DeprecationTypes.ATTR_FALSE_VALUE,
+        parentComponent
+      )
+    ) {
+      // 类型
     const type = typeof el[key]
-    if (type === 'string' || type === 'number') {
-      __DEV__ &&
-        compatUtils.warnDeprecation(
-          DeprecationTypes.ATTR_FALSE_VALUE,
-          parentComponent,
-          key
-        )
+      if (type === 'string' || type === 'number') {
+        __DEV__ &&
+          compatUtils.warnDeprecation(
+            DeprecationTypes.ATTR_FALSE_VALUE,
+            parentComponent,
+            key
+          )
       // number置为0，字符串置为空，再移除
-      el[key] = type === 'number' ? 0 : ''
-      el.removeAttribute(key)
-      return
+        value = type === 'number' ? 0 : ''
+        needRemove = true
+      }
     }
   }
 
-  // some properties perform value validation and throw
+  // some properties perform value validation and throw,
+  // some properties has getter, no setter, will error in 'use strict'
+  // eg. <select :type="null"></select> <select :willValidate="null"></select>
   // 有些属性执行值验证并抛出
   try {
     el[key] = value
   } catch (e: any) {
-    if (__DEV__) {
+    // do not warn if value is auto-coerced from nullish values
+    if (__DEV__ && !needRemove) {
       warn(
         `Failed setting prop "${key}" on <${el.tagName.toLowerCase()}>: ` +
           `value ${value} is invalid.`,
@@ -130,4 +127,5 @@ export function patchDOMProp(
       )
     }
   }
+  needRemove && el.removeAttribute(key)
 }

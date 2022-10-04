@@ -43,6 +43,7 @@ import { convertLegacyComponent } from './compat/component'
 import { convertLegacyVModelProps } from './compat/componentVModel'
 import { defineLegacyVNodeProperties } from './compat/renderFn'
 import { callWithAsyncErrorHandling, ErrorCodes } from './errorHandling'
+import { ComponentPublicInstance } from './componentPublicInstance'
 
 /**
  * 片段
@@ -89,7 +90,10 @@ export type VNodeTypes =
 export type VNodeRef =
   | string
   | Ref
-  | ((ref: object | null, refs: Record<string, any>) => void)
+  | ((
+      ref: Element | ComponentPublicInstance | null,
+      refs: Record<string, any>
+    ) => void)
 
 // 
 export type VNodeNormalizedRefAtom = {
@@ -663,6 +667,14 @@ function _createVNode(
     if (children) {
       normalizeChildren(cloned, children)
     }
+    if (isBlockTreeEnabled > 0 && !isBlockNode && currentBlock) {
+      if (cloned.shapeFlag & ShapeFlags.COMPONENT) {
+        currentBlock[currentBlock.indexOf(type)] = cloned
+      } else {
+        currentBlock.push(cloned)
+      }
+    }
+    cloned.patchFlag |= PatchFlags.BAIL
     return cloned
   }
 
@@ -757,7 +769,7 @@ export function cloneVNode<T, U>(
   const { props, ref, patchFlag, children } = vnode
   // 合并属性
   const mergedProps = extraProps ? mergeProps(props || {}, extraProps) : props
-  const cloned: VNode = {
+  const cloned: VNode<T, U> = {
     __v_isVNode: true, // 是否是vnode
     __v_skip: true, // 是否跳动
     type: vnode.type, // 节点类型
@@ -820,7 +832,7 @@ export function cloneVNode<T, U>(
   }
   // 兼容
   if (__COMPAT__) {
-    defineLegacyVNodeProperties(cloned)
+    defineLegacyVNodeProperties(cloned as VNode)
   }
   return cloned as any
 }
@@ -915,7 +927,10 @@ export function normalizeVNode(child: VNodeChild): VNode {
 // 节点没有挂载到dom上返回false，挂载的话，看看是否是固定数组，
 // 固定数组就用当前元素，不是固定数组，克隆该节点
 export function cloneIfMounted(child: VNode): VNode {
-  return child.el === null || child.memo ? child : cloneVNode(child)
+  return (child.el === null && child.patchFlag !== PatchFlags.HOISTED) ||
+    child.memo
+    ? child
+    : cloneVNode(child)
 }
 
 // 序列/常规化子节点

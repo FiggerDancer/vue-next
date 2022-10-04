@@ -4,7 +4,7 @@ export const svgNS = 'http://www.w3.org/2000/svg'
 
 const doc = (typeof document !== 'undefined' ? document : null) as Document
 
-const templateContainer = doc && doc.createElement('template')
+const templateContainer = doc && /*#__PURE__*/ doc.createElement('template')
 
 // 节点操作 这个nodeOps里的类型是RendererOptions<Node, Element>中除了patchProp其他所有键值对组成的对象
 export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
@@ -74,28 +74,6 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
   // 设置作用域id（给style scoped）用的
   setScopeId(el, id) {
     el.setAttribute(id, '')
-  },
-  // 克隆节点
-  cloneNode(el) {
-    const cloned = el.cloneNode(true) // el.cloneNode(deep) // 是否是深拷贝
-    // #3072
-    // - in `patchDOMProp`, we store the actual value in the `el._value` property.
-    // - normally, elements using `:value` bindings will not be hoisted, but if
-    //   the bound value is a constant, e.g. `:value="true"` - they do get
-    //   hoisted.
-    // - in production, hoisted nodes are cloned when subsequent inserts, but
-    //   cloneNode() does not copy the custom property we attached.
-    // - This may need to account for other custom DOM properties we attach to
-    //   elements in addition to `_value` in the future.
-    // 在更新dom的属性时，我们会存储真实的值在  `el._value` 这个属性里，
-    // 一般来说，元素使用 `:value` 绑定不会不会被挂起的
-    // 但如果被绑定的值时一个常量 比如 `:value="true"` 这时也会挂起这个值
-    // 在生产环境中， 当插入节点后，挂起的节点被克隆，但是这个克隆的节点是不会拷贝我们自定义的属性的
-    // 这可能需要考虑到将来除了' _value '之外附加到元素的其他定制DOM属性。
-    if (`_value` in el) {
-      ;(cloned as any)._value = (el as any)._value
-    }
-    return cloned
   },
 
   // __UNSAFE__

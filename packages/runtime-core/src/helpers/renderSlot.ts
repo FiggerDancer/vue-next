@@ -4,8 +4,9 @@ import {
   ContextualRenderFn,
   currentRenderingInstance
 } from '../componentRenderContext'
-import { Comment, isVNode } from '../vnode'
 import {
+  Comment,
+  isVNode,
   VNodeArrayChildren,
   openBlock,
   createBlock,
@@ -15,6 +16,7 @@ import {
 import { PatchFlags, SlotFlags } from '@vue/shared'
 import { warn } from '../warning'
 import { createVNode } from '@vue/runtime-core'
+import { isAsyncWrapper } from '../apiAsyncComponent'
 
 /**
  * Compiler runtime helper for rendering `<slot/>`
@@ -34,7 +36,12 @@ export function renderSlot(
   noSlotted?: boolean
 ): VNode {
   // 如果是web组件，是的话，创造虚拟节点插槽
-  if (currentRenderingInstance!.isCE) {
+  if (
+    currentRenderingInstance!.isCE ||
+    (currentRenderingInstance!.parent &&
+      isAsyncWrapper(currentRenderingInstance!.parent) &&
+      currentRenderingInstance!.parent.isCE)
+  ) {
     return createVNode(
       'slot',
       name === 'default' ? null : { name },
@@ -70,7 +77,14 @@ export function renderSlot(
   const validSlotContent = slot && ensureValidVNode(slot(props))
   const rendered = createBlock(
     Fragment, // 创建片段
-    { key: props.key || `_${name}` }, // 没有key的话，使用插槽名
+    {
+      key:
+        props.key ||
+        // slot content array of a dynamic conditional slot may have a branch
+        // key attached in the `createSlots` helper, respect that
+        (validSlotContent && (validSlotContent as any).key) ||
+        `_${name}`
+    }, // 没有key的话，使用插槽名
     validSlotContent || (fallback ? fallback() : []), // 插槽内容
     validSlotContent && (slots as RawSlots)._ === SlotFlags.STABLE
       ? PatchFlags.STABLE_FRAGMENT // 静态片段标记

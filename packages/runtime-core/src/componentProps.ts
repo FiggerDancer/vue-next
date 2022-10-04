@@ -166,7 +166,8 @@ const enum BooleanFlags {
 // extract props which defined with default from prop options
 // 从属性选项中提取默认定义的属性
 export type ExtractDefaultPropTypes<O> = O extends object
-  ? { [K in DefaultKeys<O>]: InferPropType<O[K]> }
+  ? // use `keyof Pick<O, DefaultKeys<O>>` instead of `DefaultKeys<O>` to support IDE features
+    { [K in keyof Pick<O, DefaultKeys<O>>]: InferPropType<O[K]> }
   : {}
 
 // 初始化属性
@@ -248,6 +249,13 @@ export function initProps(
   instance.attrs = attrs
 }
 
+function isInHmrContext(instance: ComponentInternalInstance | null) {
+  while (instance) {
+    if (instance.type.__hmrId) return true
+    instance = instance.parent
+  }
+}
+
 // 更新属性
 export function updateProps(
   instance: ComponentInternalInstance,
@@ -278,11 +286,7 @@ export function updateProps(
     // 第一个条件：非开发环境或者开发环境下当前实例或当前实例的父实例都不存在热更新id
     // 第二个条件：优化过的或者更新标记存在
     // 第三个条件：更新标记不为全量更新
-    !(
-      __DEV__ &&
-      (instance.type.__hmrId ||
-        (instance.parent && instance.parent.type.__hmrId))
-    ) &&
+    !(__DEV__ && isInHmrContext(instance)) &&
     (optimized || patchFlag > 0) &&
     !(patchFlag & PatchFlags.FULL_PROPS)
   ) {
@@ -294,6 +298,10 @@ export function updateProps(
       const propsToUpdate = instance.vnode.dynamicProps!
       for (let i = 0; i < propsToUpdate.length; i++) {
         let key = propsToUpdate[i]
+        // skip if the prop key is a declared emit event listener
+        if (isEmitListener(instance.emitsOptions, key)) {
+          continue
+        }
         // PROPS flag guarantees rawProps to be non-null
         // PROPS标志(PatchFlags.PROPS)保证rawProps是非空的
         const value = rawProps![key]
@@ -657,8 +665,10 @@ export function normalizePropsOptions(
   }
 
   if (!raw && !hasExtends) {
-    // 没有属性值，没有extends，设置为空数组，并返回空数组
+    if (isObject(comp)) {
+      // 没有属性值，没有extends，设置为空数组，并返回空数组
     cache.set(comp, EMPTY_ARR as any)
+    }
     return EMPTY_ARR as any
   }
 
@@ -709,7 +719,9 @@ export function normalizePropsOptions(
   }
 
   const res: NormalizedPropsOptions = [normalized, needCastKeys]
-  cache.set(comp, res)
+  if (isObject(comp)) {
+    cache.set(comp, res)
+  }
   return res
 }
 

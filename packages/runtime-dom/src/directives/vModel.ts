@@ -19,7 +19,9 @@ type AssignerFn = (value: any) => void
 
 // 获取v-model指定函数
 const getModelAssigner = (vnode: VNode): AssignerFn => {
-  const fn = vnode.props!['onUpdate:modelValue']
+  const fn =
+    vnode.props!['onUpdate:modelValue'] ||
+    (__COMPAT__ && vnode.props!['onModelCompat:input'])
   // 数组重写一个总函数里面会依次调用数组中的函数，否则就返回当前函数
   return isArray(fn) ? value => invokeArrayFns(fn, value) : fn
 }
@@ -35,17 +37,11 @@ function onCompositionEnd(e: Event) {
   if (target.composing) {
     target.composing = false
     // 结束的时候触发input
-    trigger(target, 'input')
+    target.dispatchEvent(new Event('input'))
   }
 }
 
 // 触发事件
-function trigger(el: HTMLElement, type: string) {
-  const e = document.createEvent('HTMLEvents')
-  e.initEvent(type, true, true)
-  el.dispatchEvent(e)
-}
-
 // Model指令，指定函数
 type ModelDirective<T> = ObjectDirective<T & { _assign: AssignerFn }>
 
@@ -71,7 +67,8 @@ export const vModelText: ModelDirective<
       if (trim) {
         // 删除空格
         domValue = domValue.trim()
-      } else if (castToNumber) {
+      }
+      if (castToNumber) {
         // 需要转化数字
         domValue = toNumber(domValue)
       }
@@ -113,7 +110,7 @@ export const vModelText: ModelDirective<
     // 避免清理未解决的文本
     if ((el as any).composing) return
     // 如果当前元素是焦点元素
-    if (document.activeElement === el) {
+    if (document.activeElement === el && el.type !== 'range') {
       // 如果有lazy后缀
       if (lazy) {
         return
@@ -348,6 +345,29 @@ export const vModelDynamic: ObjectDirective<
   }
 }
 
+function resolveDynamicModel(tagName: string, type: string | undefined) {
+  switch (tagName) {
+    case 'SELECT':
+      // v-model select
+      return vModelSelect
+    case 'TEXTAREA':
+      // textarea v-model
+      return vModelText
+    default:
+      switch (type) {
+        case 'checkbox':
+          // v-model checkbox
+          return vModelCheckbox
+        case 'radio':
+          // v-model radio
+          return vModelRadio
+        default:
+          // v-model text
+          return vModelText
+      }
+  }
+}
+
 function callModelHook(
   el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
   binding: DirectiveBinding,
@@ -355,33 +375,10 @@ function callModelHook(
   prevVNode: VNode | null,
   hook: keyof ObjectDirective
 ) {
-  // modelToUse 
-  let modelToUse: ObjectDirective
-  // 标签名
-  switch (el.tagName) {
-    case 'SELECT':
-      // v-model select
-      modelToUse = vModelSelect
-      break
-    case 'TEXTAREA':
-      // textarea v-model
-      modelToUse = vModelText
-      break
-    default:
-      switch (vnode.props && vnode.props.type) {
-        case 'checkbox':
-          // v-model checkbox
-          modelToUse = vModelCheckbox
-          break
-        case 'radio':
-          // v-model radio
-          modelToUse = vModelRadio
-          break
-        default:
-          // v-model text
-          modelToUse = vModelText
-      }
-  }
+  const modelToUse = resolveDynamicModel(
+    el.tagName,
+    vnode.props && vnode.props.type
+  )
   // 钩子函数
   const fn = modelToUse[hook] as DirectiveHook
   // 不同标签调用对应的不同钩子函数
@@ -414,6 +411,20 @@ export function initVModelForSSR() {
       }
     } else if (value) { // 普通值
       return { checked: true }
+    }
+  }
+
+  vModelDynamic.getSSRProps = (binding, vnode) => {
+    if (typeof vnode.type !== 'string') {
+      return
+    }
+    const modelToUse = resolveDynamicModel(
+      // resolveDynamicModel expects an uppercase tag name, but vnode.type is lowercase
+      vnode.type.toUpperCase(),
+      vnode.props && vnode.props.type
+    )
+    if (modelToUse.getSSRProps) {
+      return modelToUse.getSSRProps(binding, vnode)
     }
   }
 }

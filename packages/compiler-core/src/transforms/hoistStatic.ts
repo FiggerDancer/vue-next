@@ -141,13 +141,6 @@ function walk(
           }
         }
       }
-    } else if (
-      child.type === NodeTypes.TEXT_CALL &&
-      getConstantType(child.content, context) >= ConstantTypes.CAN_HOIST
-    ) {
-      // 文本
-      child.codegenNode = context.hoist(child.codegenNode)
-      hoistedCount++
     }
 
     // walk further
@@ -315,6 +308,15 @@ export function getConstantType(
         // 因为这里不会发生嵌套更新
         // 下面是对块的svg进行修改，解除他们的块结构
         if (codegenNode.isBlock) {
+          // except set custom directives.
+          for (let i = 0; i < node.props.length; i++) {
+            const p = node.props[i]
+            if (p.type === NodeTypes.DIRECTIVE) {
+              constantCache.set(node, ConstantTypes.NOT_CONSTANT)
+              return ConstantTypes.NOT_CONSTANT
+            }
+          }
+
           context.removeHelper(OPEN_BLOCK)
           context.removeHelper(
             getVNodeBlockHelper(context.inSSR, codegenNode.isComponent)

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 import { App } from './apiCreateApp'
 import { Fragment, Text, Comment, Static } from './vnode'
 import { ComponentInternalInstance } from './component'
@@ -54,6 +55,11 @@ interface DevtoolsHook {
   once: (event: string, handler: Function) => void
   off: (event: string, handler: Function) => void
   appRecords: AppRecord[]
+  /**
+   * Added at https://github.com/vuejs/devtools/commit/f2ad51eea789006ab66942e5a27c0f0986a257f9
+   * Returns wether the arg was buffered or not
+   */
+  cleanupBuffer?: (matchArg: unknown) => boolean
 }
 
 /**
@@ -107,7 +113,6 @@ export function setDevtoolsHook(hook: DevtoolsHook, target: any) {
     // 处理最新的开发者工具注入 ，这样做仅仅是因为，我们在一个真实浏览器下需要避免
     // 时间句柄停止运行卡住
     // (#4815)
-    // eslint-disable-next-line no-restricted-globals
     typeof window !== 'undefined' &&
     // some envs mock window but not fully
     // 一些环境模拟window，但是不完全
@@ -185,8 +190,22 @@ export const devtoolsComponentUpdated =
 /**
  * 开发者工具组件被移除
  */
-export const devtoolsComponentRemoved =
-  /*#__PURE__*/ createDevtoolsComponentHook(DevtoolsHooks.COMPONENT_REMOVED)
+const _devtoolsComponentRemoved = /*#__PURE__*/ createDevtoolsComponentHook(
+  DevtoolsHooks.COMPONENT_REMOVED
+)
+
+export const devtoolsComponentRemoved = (
+  component: ComponentInternalInstance
+) => {
+  if (
+    devtools &&
+    typeof devtools.cleanupBuffer === 'function' &&
+    // remove the component if it wasn't buffered
+    !devtools.cleanupBuffer(component)
+  ) {
+    _devtoolsComponentRemoved(component)
+  }
+}
 
 /**
  * 创建开发者组件的钩子

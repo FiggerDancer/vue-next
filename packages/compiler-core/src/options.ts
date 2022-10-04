@@ -135,6 +135,10 @@ export const enum BindingTypes {
    */
   SETUP_CONST = 'setup-const',
   /**
+   * a const binding that does not need `unref()`, but may be mutated.
+   */
+  SETUP_REACTIVE_CONST = 'setup-reactive-const',
+  /**
    * a const binding that may be a ref.
    * 一个或许是ref的常量绑定
    */

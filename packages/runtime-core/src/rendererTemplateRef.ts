@@ -126,6 +126,9 @@ export function setRef(
               if (_isString) {
                 // 使用的是字符串
                 refs[ref] = [refValue]
+                if (hasOwn(setupState, ref)) {
+                  setupState[ref] = refs[ref]
+                }
               } else {
                 // 使用的是ref
                 ref.value = [refValue]
@@ -143,7 +146,7 @@ export function setRef(
           if (hasOwn(setupState, ref)) {
             setupState[ref] = value
           }
-        } else if (isRef(ref)) {
+        } else if (_isRef) {
           // 是ref
           ref.value = value
           // 设置ref的值

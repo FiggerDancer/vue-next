@@ -31,7 +31,13 @@ import {
   walkIdentifiers
 } from '../babelUtils'
 import { advancePositionWithClone, isSimpleIdentifier } from '../utils'
-import { isGloballyWhitelisted, makeMap, hasOwn, isString } from '@vue/shared'
+import {
+  isGloballyWhitelisted,
+  makeMap,
+  hasOwn,
+  isString,
+  genPropsAccessExp
+} from '@vue/shared'
 import { createCompilerError, ErrorCodes } from '../errors'
 import {
   Node,
@@ -187,7 +193,11 @@ export function processExpression(
         parent && isInDestructureAssignment(parent, parentStack)
 
       // setup const 或者 作用域变量
-      if (type === BindingTypes.SETUP_CONST || localVars[raw]) {
+      if (
+        type === BindingTypes.SETUP_CONST ||
+        type === BindingTypes.SETUP_REACTIVE_CONST ||
+        localVars[raw]
+      ) {
         // 返回原始值
         return raw
       } else if (type === BindingTypes.SETUP_REF) {
@@ -263,11 +273,11 @@ export function processExpression(
         // it gets correct type
         // 使用props被编译器脚本生成，
         // 所以在ts模式中它获得了正确的类型
-        return `__props.${raw}`
+        return genPropsAccessExp(raw)
       } else if (type === BindingTypes.PROPS_ALIASED) {
         // prop with a different local alias (from defineProps() destructure)
         // prop使用一个不同的作用域别名（来自定义属性解构）
-        return `__props.${bindingMetadata.__propsAliases![raw]}`
+        return genPropsAccessExp(bindingMetadata.__propsAliases![raw])
       }
     } else {
       if (type && type.startsWith('setup')) {
@@ -275,7 +285,7 @@ export function processExpression(
         // setup绑定在非内联模式中
         return `$setup.${raw}`
       } else if (type === BindingTypes.PROPS_ALIASED) {
-        return `$props.${bindingMetadata.__propsAliases![raw]}`
+        return `$props['${bindingMetadata.__propsAliases![raw]}']`
       } else if (type) {
         return `$${type}.${raw}`
       }

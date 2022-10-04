@@ -9,7 +9,7 @@ import {
   EffectScheduler,
   DebuggerOptions
 } from '@vue/reactivity'
-import { SchedulerJob, queuePreFlushCb } from './scheduler'
+import { SchedulerJob, queueJob } from './scheduler'
 import {
   EMPTY_OBJ,
   isObject,
@@ -137,7 +137,7 @@ export function watchPostEffect(
     effect,
     null,
     (__DEV__
-      ? Object.assign(options || {}, { flush: 'post' })
+      ? { ...options, flush: 'post' }
       : { flush: 'post' }) as WatchOptionsBase
   )
 }
@@ -157,7 +157,7 @@ export function watchSyncEffect(
     effect,
     null,
     (__DEV__
-      ? Object.assign(options || {}, { flush: 'sync' })
+      ? { ...options, flush: 'sync' }
       : { flush: 'sync' }) as WatchOptionsBase
   )
 }
@@ -324,7 +324,7 @@ function doWatch(
     // 如果是多个源
     isMultiSource = true
     // 值里面是否存在reactive，如果有的话，将强制触发设置为true
-    forceTrigger = source.some(isReactive)
+    forceTrigger = source.some(s => isReactive(s) || isShallow(s))
     // 访问器
     getter = () =>
       source.map(s => {
@@ -483,15 +483,9 @@ function doWatch(
     scheduler = () => queuePostRenderEffect(job, instance && instance.suspense)
   } else {
     // default: 'pre'
-    scheduler = () => {
-      if (!instance || instance.isMounted) {
-        queuePreFlushCb(job)
-      } else {
-        // with 'pre' option, the first call must happen before
-        // the component is mounted so it is called synchronously.
-        job()
-      }
-    }
+    job.pre = true
+    if (instance) job.id = instance.uid
+    scheduler = () => queueJob(job)
   }
 
   const effect = new ReactiveEffect(getter, scheduler)

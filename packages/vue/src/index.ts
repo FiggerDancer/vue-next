@@ -56,17 +56,20 @@ function compileToFunction(
   }
 
   // 编译成code
-  const { code } = compile(
-    template,
-    extend(
-      {
-        hoistStatic: true,
-        onError: __DEV__ ? onError : undefined,
-        onWarn: __DEV__ ? e => onError(e, true) : NOOP
-      } as CompilerOptions,
-      options
-    )
+  const opts = extend(
+    {
+      hoistStatic: true,
+      onError: __DEV__ ? onError : undefined,
+      onWarn: __DEV__ ? e => onError(e, true) : NOOP
+    } as CompilerOptions,
+    options
   )
+
+  if (!opts.isCustomElement && typeof customElements !== 'undefined') {
+    opts.isCustomElement = tag => !!customElements.get(tag)
+  }
+
+  const { code } = compile(template, opts)
 
   // 错误回调
   function onError(err: CompilerError, asWarning = false) {

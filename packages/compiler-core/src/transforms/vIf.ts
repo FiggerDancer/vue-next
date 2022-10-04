@@ -249,15 +249,14 @@ export function processIf(
  * @returns 
  */
 function createIfBranch(node: ElementNode, dir: DirectiveNode): IfBranchNode {
+  const isTemplateIf = node.tagType === ElementTypes.TEMPLATE
   return {
     type: NodeTypes.IF_BRANCH,
     loc: node.loc,
     condition: dir.name === 'else' ? undefined : dir.exp,
-    children:
-      node.tagType === ElementTypes.TEMPLATE && !findDir(node, 'for')
-        ? node.children
-        : [node],
-    userKey: findProp(node, `key`)
+    children: isTemplateIf && !findDir(node, 'for') ? node.children : [node],
+    userKey: findProp(node, `key`),
+    isTemplateIf
   }
 }
 
@@ -340,6 +339,7 @@ function createChildrenCodegenNode(
       // 检查片段是否包含一个有效的子片段，其余的都是注释
       if (
         __DEV__ &&
+        !branch.isTemplateIf &&
         children.filter(c => c.type !== NodeTypes.COMMENT).length === 1
       ) {
         // 添加DEV_ROOT_FRAGMENT标记

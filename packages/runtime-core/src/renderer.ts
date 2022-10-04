@@ -462,7 +462,6 @@ function baseCreateRenderer(
     parentNode: hostParentNode,
     nextSibling: hostNextSibling,
     setScopeId: hostSetScopeId = NOOP,
-    cloneNode: hostCloneNode,
     insertStaticContent: hostInsertStaticContent
   } = options
 
@@ -798,101 +797,84 @@ function baseCreateRenderer(
   ) => {
     let el: RendererElement
     let vnodeHook: VNodeHook | undefined | null
-    const { type, props, shapeFlag, transition, patchFlag, dirs } = vnode
-    if (
-      !__DEV__ &&
-      vnode.el &&
-      hostCloneNode !== undefined &&
-      patchFlag === PatchFlags.HOISTED
-    ) {
-      // If a vnode has non-null el, it means it's being reused.
-      // Only static vnodes can be reused, so its mounted DOM nodes should be
-      // exactly the same, and we can simply do a clone here.
-      // only do this in production since cloned trees cannot be HMR updated.
-      // 如果一个vnode有非空的el，这意味着它正在被重用。
-      // 只有静态的vnode可以被重用，所以它挂载的DOM节点应该是完全相同的，
-      // 我们可以在这里简单地克隆一下。只能在生产中这样做，因为克隆树不能进行HMR更新。
-      el = vnode.el = hostCloneNode(vnode.el)
-    } else {
-      // 其他情况下，需要创建一个新的
-      // 创建DOM元素节点
-      // hostCreateElement相当于document.createElement
-      el = vnode.el = hostCreateElement(
-        vnode.type as string,
-        isSVG,
-        props && props.is,
-        props
-      )
+    const { type, props, shapeFlag, transition, dirs } = vnode
 
-      // mount children first, since some props may rely on child content
-      // being already rendered, e.g. `<select value>`
+    el = vnode.el = hostCreateElement(
+      vnode.type as string,
+      isSVG,
+      props && props.is,
+      props
+    )
+
+    // mount children first, since some props may rely on child content
+    // being already rendered, e.g. `<select value>`
       // 首先Mount子节点，因为一些属性可能依赖于已经渲染的子节点内容，例如 `<select value>`
-      if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
         // 处理子节点vnode是纯文本的情况
-        hostSetElementText(el, vnode.children as string)
-      } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+      hostSetElementText(el, vnode.children as string)
+    } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
         // 处理子节点vnode是数组的情况
-        mountChildren(
-          vnode.children as VNodeArrayChildren,
-          el,
-          null,
-          parentComponent,
-          parentSuspense,
-          isSVG && type !== 'foreignObject', // 节点类型不是 foreignObject (svg一种)
-          slotScopeIds,
-          optimized
-        )
-      }
+      mountChildren(
+        vnode.children as VNodeArrayChildren,
+        el,
+        null,
+        parentComponent,
+        parentSuspense,
+        isSVG && type !== 'foreignObject', // 节点类型不是 foreignObject (svg一种)
+        slotScopeIds,
+        optimized
+      )
+    }
 
       // 有指令，调用指令中的created钩子
-      if (dirs) {
-        invokeDirectiveHook(vnode, null, parentComponent, 'created')
-      }
-      // props
+    if (dirs) {
+      invokeDirectiveHook(vnode, null, parentComponent, 'created')
+    }
+    // props
       // 属性
-      if (props) {
+    if (props) {
         // 处理props，比如class、style、events等属性
-        for (const key in props) {
+      for (const key in props) {
           // 对非保留字段属性打补丁，更新
-          if (key !== 'value' && !isReservedProp(key)) {
-            hostPatchProp(
-              el,
-              key, // props
-              null,
-              props[key], // props的值
-              isSVG,
-              vnode.children as VNode[],
-              parentComponent,
-              parentSuspense,
-              unmountChildren // 卸载组件的方法
-            )
-          }
+        if (key !== 'value' && !isReservedProp(key)) {
+          hostPatchProp(
+            el,
+            key, // props
+            null,
+            props[key], // props的值
+            isSVG,
+            vnode.children as VNode[],
+            parentComponent,
+            parentSuspense,
+            unmountChildren // 卸载组件的方法
+          )
         }
-        /**
-         * Special case for setting value on DOM elements:
-         * - it can be order-sensitive (e.g. should be set *after* min/max, #2325, #4024)
-         * - it needs to be forced (#1471)
-         * #2353 proposes adding another renderer option to configure this, but
-         * the properties affects are so finite it is worth special casing it
-         * here to reduce the complexity. (Special casing it also should not
-         * affect non-DOM renderers)
+      }
+      /**
+       * Special case for setting value on DOM elements:
+       * - it can be order-sensitive (e.g. should be set *after* min/max, #2325, #4024)
+       * - it needs to be forced (#1471)
+       * #2353 proposes adding another renderer option to configure this, but
+       * the properties affects are so finite it is worth special casing it
+       * here to reduce the complexity. (Special casing it also should not
+       * affect non-DOM renderers)
          * 给dom设置value是一种特殊情况，它对顺序是敏感的，应该在设置min/max之后设置
          * 这需要强制
          * 建议添加另一个渲染器选项来配置它，但属性影响是如此有限，
          * 因此值得在这里对其进行特殊的包装，以降低复杂性。(特殊的大小写也不会影响到非dom渲染器)
-         */
-        if ('value' in props) {
-          hostPatchProp(el, 'value', null, props.value)
-        }
-        // 调用钩子
-        if ((vnodeHook = props.onVnodeBeforeMount)) {
-          invokeVNodeHook(vnodeHook, parentComponent, vnode)
-        }
+       */
+      if ('value' in props) {
+        hostPatchProp(el, 'value', null, props.value)
       }
-      // scopeId
-      // 设置作用域Id
-      setScopeId(el, vnode, vnode.scopeId, slotScopeIds, parentComponent)
+        // 调用钩子
+      if ((vnodeHook = props.onVnodeBeforeMount)) {
+        invokeVNodeHook(vnodeHook, parentComponent, vnode)
+      }
     }
+    // scopeId
+      // 设置作用域Id
+    setScopeId(el, vnode, vnode.scopeId, slotScopeIds, parentComponent)
+
     // 开发者环境或者开启了开发这工具
     if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
       Object.defineProperty(el, '__vnode', {
@@ -1291,33 +1273,8 @@ function baseCreateRenderer(
     isSVG: boolean
   ) => {
     if (oldProps !== newProps) {
-      for (const key in newProps) {
-        // empty string is not valid prop
-        // 空的字符串不是有效属性
-        // 保留属性直接跳过
-        if (isReservedProp(key)) continue
-        const next = newProps[key]
-        const prev = oldProps[key]
-        // defer patching value
-        // 其他的属性更新，延迟更新value
-        if (next !== prev && key !== 'value') {
-          hostPatchProp(
-            el,
-            key,
-            prev,
-            next,
-            isSVG,
-            vnode.children as VNode[],
-            parentComponent,
-            parentSuspense,
-            unmountChildren
-          )
-        }
-      }
-      // 旧值不为空
       if (oldProps !== EMPTY_OBJ) {
         for (const key in oldProps) {
-          // 清除不再使用的旧值
           if (!isReservedProp(key) && !(key in newProps)) {
             hostPatchProp(
               el,
@@ -1331,6 +1288,26 @@ function baseCreateRenderer(
               unmountChildren
             )
           }
+        }
+      }
+      for (const key in newProps) {
+        // empty string is not valid prop
+        if (isReservedProp(key)) continue
+        const next = newProps[key]
+        const prev = oldProps[key]
+        // defer patching value
+        if (next !== prev && key !== 'value') {
+          hostPatchProp(
+            el,
+            key,
+            prev,
+            next,
+            isSVG,
+            vnode.children as VNode[],
+            parentComponent,
+            parentSuspense,
+            unmountChildren
+          )
         }
       }
       // 更新value
@@ -1358,8 +1335,12 @@ function baseCreateRenderer(
 
     let { patchFlag, dynamicChildren, slotScopeIds: fragmentSlotScopeIds } = n2
 
-    if (__DEV__ && isHmrUpdating) {
-      // HMR updated, force full diff
+    if (
+      __DEV__ &&
+      // #5523 dev root fragment may inherit directives
+      (isHmrUpdating || patchFlag & PatchFlags.DEV_ROOT_FRAGMENT)
+    ) {
+      // HMR updated / Dev root fragment (w/ comments), force full diff
       // 热更新强制全量diff
       patchFlag = 0
       optimized = false
@@ -1666,7 +1647,6 @@ function baseCreateRenderer(
     } else {
       // no update needed. just copy over properties
       // 不需要更新，只复制属性
-      n2.component = n1.component
       n2.el = n1.el
       instance.vnode = n2
     }
@@ -1851,7 +1831,12 @@ function baseCreateRenderer(
         // since the hook may be injected by a child keep-alive
         // keep-alive激活的钩子的根节点
         // 被激活的钩子必须在第一次渲染后被访问，因为钩子可能被一个child keep-alive注入
-        if (initialVNode.shapeFlag & ShapeFlags.COMPONENT_SHOULD_KEEP_ALIVE) {
+        if (
+          initialVNode.shapeFlag & ShapeFlags.COMPONENT_SHOULD_KEEP_ALIVE ||
+          (parent &&
+            isAsyncWrapper(parent.vnode) &&
+            parent.vnode.shapeFlag & ShapeFlags.COMPONENT_SHOULD_KEEP_ALIVE)
+        ) {
           // 异步挂载
           instance.a && queuePostRenderEffect(instance.a, parentSuspense)
           // 兼容，异步触发 钩子
@@ -2006,12 +1991,12 @@ function baseCreateRenderer(
     // 创建组件渲染的副作用响应式对象
     const effect = (instance.effect = new ReactiveEffect(
       componentUpdateFn,
-      () => queueJob(instance.update), // 通过调度器异步更新
+      () => queueJob(update), // 通过调度器异步更新
       instance.scope // track it in component's effect scope
       // 在组件的影响作用域内跟踪它
     ))
 
-    const update = (instance.update = effect.run.bind(effect) as SchedulerJob)
+    const update: SchedulerJob = (instance.update = () => effect.run())
     update.id = instance.uid
     // allowRecurse
     // #1801, #2043 component render effects should allow recursive updates
@@ -2026,7 +2011,6 @@ function baseCreateRenderer(
       effect.onTrigger = instance.rtg
         ? e => invokeArrayFns(instance.rtg!, e)
         : void 0
-      // @ts-ignore (for scheduler)
       // 为了调度，拥有者的实例
       update.ownerInstance = instance
     }
@@ -2061,7 +2045,7 @@ function baseCreateRenderer(
     // props update may have triggered pre-flush watchers.
     // flush them before the render update.
     // props更新可能触发了pre-flush的观察者。在渲染更新之前刷新它们。
-    flushPreFlushCbs(undefined, instance.update)
+    flushPreFlushCbs()
     // 重置追踪（回退到上一步的追踪状态）
     resetTracking()
   }
@@ -2820,7 +2804,23 @@ function baseCreateRenderer(
     const { type, el, anchor, transition } = vnode
     // 片段
     if (type === Fragment) {
-      removeFragment(el!, anchor!)
+      if (
+        __DEV__ &&
+        vnode.patchFlag > 0 &&
+        vnode.patchFlag & PatchFlags.DEV_ROOT_FRAGMENT &&
+        transition &&
+        !transition.persisted
+      ) {
+        ;(vnode.children as VNode[]).forEach(child => {
+          if (child.type === Comment) {
+            hostRemove(child.el!)
+          } else {
+            remove(child)
+          }
+        })
+      } else {
+        removeFragment(el!, anchor!)
+      }
       return
     }
 
@@ -3010,6 +3010,7 @@ function baseCreateRenderer(
       // 创建或者更新组件
       patch(container._vnode || null, vnode, container, null, null, null, isSVG)
     }
+    flushPreFlushCbs()
     // 执行全部异步回调，并推出这些回调
     flushPostFlushCbs()
     // 缓存vnode节点，表示已经渲染
