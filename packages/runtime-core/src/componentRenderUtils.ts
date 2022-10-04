@@ -141,7 +141,7 @@ export function renderComponentRoot(
     blockStack.length = 0
     // 处理错误
     handleError(err, instance, ErrorCodes.RENDER_FUNCTION)
-    // 创建注释节点
+    // 渲染出错则渲染成一个注释节点
     result = createVNode(Comment)
   }
 

@@ -184,7 +184,13 @@ export type NormalizedProps = Record<string, NormalizedProp>
 // 最后的初始化属性，可以允许对象式的或者字符串数组
 export type NormalizedPropsOptions = [NormalizedProps, string[]] | []
 
-// 初始化属性
+/**
+ * 初始化属性
+ * @param instance 
+ * @param rawProps 
+ * @param isStateful 
+ * @param isSSR 
+ */
 export function initProps(
   instance: ComponentInternalInstance,
   rawProps: Data | null,
@@ -415,7 +421,14 @@ export function updateProps(
   }
 }
 
-// 设置全属性
+/**
+ * 设置全属性
+ * @param instance 
+ * @param rawProps 
+ * @param props 
+ * @param attrs 
+ * @returns 
+ */
 function setFullProps(
   instance: ComponentInternalInstance,
   rawProps: Data | null,
@@ -584,11 +597,24 @@ function resolvePropValue(
   return value
 }
 
+/**
+ * 标准化props配置
+ * 
+ * 该函数会首先处理mixins和extends，因为这两个特殊属性
+ * 因为他们的作用都是扩展组件的定义
+ * 所以需要对其定义中的props递归执行normalizePropsOptions
+ * 
+ * @param comp 定义组件的对象
+ * @param appContext 全局上下文
+ * @param asMixin 表示当前是否处于mixins的处理环境中
+ * @returns 
+ */
 export function normalizePropsOptions(
   comp: ConcreteComponent,
   appContext: AppContext,
   asMixin = false
 ): NormalizedPropsOptions {
+  // 用于缓存标准化的结果，有缓存则直接返回
   const cache = appContext.propsCache
   const cached = cache.get(comp)
   if (cached) {
@@ -596,10 +622,17 @@ export function normalizePropsOptions(
   }
 
   const raw = comp.props
+  /**
+   * 标准化后的props
+   */
   const normalized: NormalizedPropsOptions[0] = {}
+  /**
+   * 存放需要转化的key
+   */
   const needCastKeys: NormalizedPropsOptions[1] = []
 
   // apply mixin/extends props
+  // 处理mixin和extend这些props
   let hasExtends = false
   if (__FEATURE_OPTIONS_API__ && !isFunction(comp)) {
     const extendProps = (raw: ComponentOptions) => {
@@ -611,6 +644,7 @@ export function normalizePropsOptions(
       extend(normalized, props)
       if (keys) needCastKeys.push(...keys)
     }
+    // 处理全局的mixins
     if (!asMixin && appContext.mixins.length) {
       appContext.mixins.forEach(extendProps)
     }
@@ -623,21 +657,27 @@ export function normalizePropsOptions(
   }
 
   if (!raw && !hasExtends) {
+    // 没有属性值，没有extends，设置为空数组，并返回空数组
     cache.set(comp, EMPTY_ARR as any)
     return EMPTY_ARR as any
   }
 
   if (isArray(raw)) {
+    // 处理数组形式的props定义 ['name', 'nick-name'] => {name: {}, nickName: {}}
     for (let i = 0; i < raw.length; i++) {
       if (__DEV__ && !isString(raw[i])) {
         warn(`props must be strings when using array syntax.`, raw[i])
       }
+      // 驼峰
       const normalizedKey = camelize(raw[i])
+      // 校验props名称是否符合规范
       if (validatePropName(normalizedKey)) {
+        // 设置 name: {}
         normalized[normalizedKey] = EMPTY_OBJ
       }
     }
   } else if (raw) {
+    // {name: String, nickName: [String, Boolean]} => {name: {type: String}, nickName: { type: [String, Boolean ]}}
     if (__DEV__ && !isObject(raw)) {
       warn(`invalid props options`, raw)
     }
@@ -645,15 +685,21 @@ export function normalizePropsOptions(
       const normalizedKey = camelize(key)
       if (validatePropName(normalizedKey)) {
         const opt = raw[key]
+        // 标准化prop的定义格式
         const prop: NormalizedProp = (normalized[normalizedKey] =
           isArray(opt) || isFunction(opt) ? { type: opt } : opt)
         if (prop) {
+          // Boolean类型的索引
           const booleanIndex = getTypeIndex(Boolean, prop.type)
+          // String类型的索引
           const stringIndex = getTypeIndex(String, prop.type)
+          // 存在boolean值类型的索引，则标记，存在需要转化的key
           prop[BooleanFlags.shouldCast] = booleanIndex > -1
+          // 1.属性不是String类型；2.属性中布尔值类型在字符串之前，（布尔值可能不存在，字符串存在）
           prop[BooleanFlags.shouldCastTrue] =
             stringIndex < 0 || booleanIndex < stringIndex
           // if the prop needs boolean casting or default value
+          // 布尔值和有默认值的prop都需要转换
           if (booleanIndex > -1 || hasOwn(prop, 'default')) {
             needCastKeys.push(normalizedKey)
           }

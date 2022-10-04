@@ -14,6 +14,7 @@ export const V_SHOW = Symbol(__DEV__ ? `vShow` : ``)
 export const TRANSITION = Symbol(__DEV__ ? `Transition` : ``)
 export const TRANSITION_GROUP = Symbol(__DEV__ ? `TransitionGroup` : ``)
 
+// 注册运行时帮助函数，v-model，keys，修饰符，v-show，transition
 registerRuntimeHelpers({
   [V_MODEL_RADIO]: `vModelRadio`,
   [V_MODEL_CHECKBOX]: `vModelCheckbox`,

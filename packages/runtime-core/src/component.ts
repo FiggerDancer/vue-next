@@ -229,10 +229,25 @@ export type InternalRenderFunction = {
  * 我们在内部实例上公开属性子集，因为它们对高级外部库和工具有用。
  */
 export interface ComponentInternalInstance {
+  /**
+   * 组件唯一id
+   */
   uid: number
+  /**
+   * vNode节点类型
+   */
   type: ConcreteComponent
+  /**
+   * 父组件实例
+   */
   parent: ComponentInternalInstance | null
+  /**
+   * 根组件实例
+   */
   root: ComponentInternalInstance
+  /**
+   * app上下文
+   */
   appContext: AppContext
   /**
    * Vnode representing this component in its parent's vdom tree
@@ -241,13 +256,13 @@ export interface ComponentInternalInstance {
   vnode: VNode
   /**
    * The pending new vnode from parent updates
-   * 来自父更新的挂起的新vnode
+   * 来自父更新的挂起的新vnode，新的组件vnode
    * @internal
    */
   next: VNode | null
   /**
    * Root vnode of this component's own vdom tree
-   * 该组件自己的vdom树的根vnode
+   * 该组件自己的vdom树的根vnode，子节点vnode
    */
   subTree: VNode
   /**
@@ -257,12 +272,13 @@ export interface ComponentInternalInstance {
   effect: ReactiveEffect
   /**
    * Bound effect runner to be passed to schedulers
-   * 绑定效应运行器被传递给调度程序
+   * 绑定副作用传递给调度程序，带有副作用的更新函数
    */
   update: SchedulerJob
   /**
    * The render function that returns vdom tree.
    * 返回vdom树的渲染函数。
+   * 渲染函数
    * @internal
    */
   render: InternalRenderFunction | null
@@ -275,6 +291,7 @@ export interface ComponentInternalInstance {
   /**
    * Object containing values this component provides for its descendents
    * 对象，该对象包含此组件为其后代提供的值
+   * 组件实例的provides对象指向父组件实例的provides对象
    * @internal
    */
   provides: Data
@@ -282,12 +299,14 @@ export interface ComponentInternalInstance {
    * Tracking reactive effects (e.g. watchers) associated with this component
    * so that they can be automatically stopped on component unmount
    * 跟踪与此组件相关的反应效果(例如监视器)，以便在组件卸载时自动停止它们
+   * effect作用域
    * @internal
    */
   scope: EffectScope
   /**
    * cache for proxy access type to avoid hasOwnProperty calls
    * 缓存代理访问类型，以避免hasOwnProperty调用
+   * 渲染代理的属性访问缓存
    * @internal
    */
   accessCache: Data | null
@@ -295,6 +314,7 @@ export interface ComponentInternalInstance {
    * cache for render function values that rely on _ctx but won't need updates
    * after initialized (e.g. inline handlers)
    * 缓存渲染函数值依赖于_ctx，但在初始化后不需要更新(例如内联处理程序)
+   * 渲染缓存
    * @internal
    */
   renderCache: (Function | VNode)[]
@@ -308,30 +328,32 @@ export interface ComponentInternalInstance {
   /**
    * Resolved directive registry, only for components with mixins or extends
    * 解析指令注册表，仅适用于带有mixin或extends的组件
+   * 注册的组件
    * @internal
    */
   directives: Record<string, Directive> | null
   /**
    * Resolved filters registry, v2 compat only
    * 解析过滤器注册表，仅v2 compat
+   * 注册的指令
    * @internal
    */
   filters?: Record<string, Function>
   /**
    * resolved props options
-   * 解决道具选项
+   * 标准化属性
    * @internal
    */
   propsOptions: NormalizedPropsOptions
   /**
    * resolved emits options
-   * 解决排放选项
+   * emits配置
    * @internal
    */
   emitsOptions: ObjectEmitsOptions | null
   /**
    * resolved inheritAttrs options
-   * 解决inheritAttrs选项
+   * 继承inheritAttrs选项
    * @internal
    */
   inheritAttrs?: boolean
@@ -351,18 +373,26 @@ export interface ComponentInternalInstance {
   // 其余的仅用于有状态组件 用作公共实例的主代理(“this”)
 
   // main proxy that serves as the public instance (`this`)
-  // 
+  /**
+   * 渲染上下文代理
+   */
   proxy: ComponentPublicInstance | null
 
   // exposed properties via expose()
-  // 通过expose()暴露属性
+  /**
+   * 通过expose()暴露的属性
+   */
   exposed: Record<string, any> | null
+  /**
+   * 暴露属性的代理
+   */
   exposeProxy: Record<string, any> | null
 
   /**
    * alternative proxy used only for runtime-compiled render functions using 
    * `with` block
    * 仅用于使用' with '块的运行时编译的呈现函数的替代代理
+   * 带有with区块的渲染上下文代理
    * @internal
    */
   withProxy: ComponentPublicInstance | null
@@ -372,17 +402,36 @@ export interface ComponentInternalInstance {
    * custom properties (via `this.x = ...`)
    * 这是公共实例代理的目标。
    * 它还保存由用户选项(计算、方法等)注入的属性和用户附加的自定义属性(通过' this.x =…”)
+   * 渲染上下文
    * @internal
    */
   ctx: Data
 
   // state
   // 状态
+  /**
+   * data数据
+   */
   data: Data
+  /**
+   * props数据
+   */
   props: Data
+  /**
+   * 普通属性
+   */
   attrs: Data
+  /**
+   * 插槽相关
+   */
   slots: InternalSlots
+  /**
+   * 组件或者DOM的ref引用
+   */
   refs: Data
+  /**
+   * 派发事件方法
+   */
   emit: EmitFn
   /**
    * used for keeping track of .once event handlers on components
@@ -395,12 +444,14 @@ export interface ComponentInternalInstance {
    * avoid unnecessary watcher trigger
    * 用于缓存从props默认工厂函数返回的值，
    * 以避免不必要的监视器触发器
+   * props默认值
    * @internal
    */
   propsDefaults: Data
   /**
    * setup related
    * 相关的设置
+   * setup函数返回的响应式结果
    * @internal
    */
   setupState: Data
@@ -411,6 +462,7 @@ export interface ComponentInternalInstance {
    */
   devtoolsRawSetupState?: any
   /**
+   * setup函数上下文数据
    * @internal
    */
   setupContext: SetupContext | null
@@ -429,23 +481,36 @@ export interface ComponentInternalInstance {
   suspenseId: number
   /**
    * @internal
+   * suspense 异步依赖
    */
   asyncDep: Promise<any> | null
   /**
    * @internal
+   * suspense 异步依赖是否已经被处理
    */
   asyncResolved: boolean
 
   // lifecycle
   // 声明周期
+  /**
+   * 是否挂载
+   */
   isMounted: boolean
+  /**
+   * 是否卸载
+   */
   isUnmounted: boolean
+  /**
+   * 是否激活
+   */
   isDeactivated: boolean
   /**
    * @internal
+   * 声明周期 before create
    */
   [LifecycleHooks.BEFORE_CREATE]: LifecycleHook
   /**
+   * 声明周期 before create
    * @internal
    */
   [LifecycleHooks.CREATED]: LifecycleHook
@@ -532,10 +597,15 @@ export function createComponentInstance(
     root: null!, // to be immediately set // 被立刻设置
     next: null,
     subTree: null!, // will be set synchronously right after creation // 会在创建后同步设置
+    // 响应式相关对象
     effect: null!,
+    // 带副作用更新函数
     update: null!, // will be set synchronously right after creation // 会在创建后同步设置
+    // effect作用域
     scope: new EffectScope(true /* detached */), // 分离的副作用
+    // 渲染函数
     render: null,
+    // 渲染上下文代理
     proxy: null,
     exposed: null,
     exposeProxy: null,
@@ -550,7 +620,7 @@ export function createComponentInstance(
     directives: null,
 
     // resolved props and emits options
-    // 解决props和emits选项
+    // 解决props和emits选项,标准化属性和emits配置
     propsOptions: normalizePropsOptions(type, appContext),
     emitsOptions: normalizeEmitsOptions(type, appContext),
 
@@ -573,6 +643,7 @@ export function createComponentInstance(
     props: EMPTY_OBJ,
     attrs: EMPTY_OBJ,
     slots: EMPTY_OBJ,
+    // 组件或者DOM的ref引用
     refs: EMPTY_OBJ,
     setupState: EMPTY_OBJ,
     setupContext: null,
@@ -581,6 +652,7 @@ export function createComponentInstance(
     // 相关suspense
     suspense,
     suspenseId: suspense ? suspense.pendingId : 0,
+    // suspense 异步依赖
     asyncDep: null,
     asyncResolved: false,
 
@@ -605,19 +677,21 @@ export function createComponentInstance(
     ec: null,
     sp: null
   }
+  // 初始化渲染上下文
   if (__DEV__) {
     // 开发环境：创建开发环境渲染上下文
     instance.ctx = createDevRenderContext(instance)
   } else {
     instance.ctx = { _: instance }
   }
+  // 初始化根组件指针
   // 如果有父节点，则去找父节点的根节点，否则自己本身就是根节点了
   instance.root = parent ? parent.root : instance
-  // 触发事件
+  // 初始化派发事件方法
   instance.emit = emit.bind(null, instance)
 
   // apply custom element special handling
-  // 应用web组件特殊处理
+  // 执行自定义元素（web组件）特殊的处理器
   if (vnode.ce) {
     vnode.ce(instance)
   }
@@ -667,7 +741,12 @@ export function isStatefulComponent(instance: ComponentInternalInstance) {
 // 是否是正处于SSR组件安装
 export let isInSSRComponentSetup = false
 
-// 安装组件
+/**
+ * 设置组件
+ * @param instance 
+ * @param isSSR 
+ * @returns 
+ */
 export function setupComponent(
   instance: ComponentInternalInstance,
   isSSR = false
@@ -676,12 +755,15 @@ export function setupComponent(
 
   // 获取实例的孩子节点和属性
   const { props, children } = instance.vnode
+  // 判断是否是一个有状态的组件
   const isStateful = isStatefulComponent(instance)
   // 组件的初始化其实就是子节点和属性的初始化
+  // 初始化props
   initProps(instance, props, isStateful, isSSR)
+  // 初始化插槽
   initSlots(instance, children)
 
-  // 判断组件是哦福是stateful，然后做相应处理
+  // 设置有状态的组件实例
   const setupResult = isStateful
     ? setupStatefulComponent(instance, isSSR)
     : undefined
@@ -689,7 +771,25 @@ export function setupComponent(
   return setupResult
 }
 
-// 安装有状态组件
+/**
+ * 设置有状态组件
+ * 
+ * 这个函数主要做了3件事
+ * 1. 创建渲染上下文代理
+ * 2. 判断处理setup函数
+ * 3. 完成组件实例设置
+ * 
+ *  为什么需要代理？
+ * 因为为了方便维护，将不同组件中的不同状态的数据
+ * 存储到不同的属性中，比如 setupState、ctx、data、props等
+ * 但是执行渲染函数时，为了方便用户使用
+ * render函数内部会直接访问渲染上下文instance.ctx中的属性
+ * 所以我们要加一层代理对渲染上下文instance.ctx的属性进行访问和修改
+ * 以代理对setupState、ctx、data、props中数据的访问和修改
+ * @param instance 
+ * @param isSSR 
+ * @returns 
+ */
 function setupStatefulComponent(
   instance: ComponentInternalInstance,
   isSSR: boolean
@@ -731,18 +831,18 @@ function setupStatefulComponent(
   // 1. create public instance / render proxy
   // also mark it raw so it's never observed
   // 创建公共实例/渲染代理也将其标记为原始，所以它永远不会被观察到
-  // 对组件的context上下文做代理
+  // 创建组件的渲染上下文做代理
   instance.proxy = markRaw(new Proxy(instance.ctx, PublicInstanceProxyHandlers))
   if (__DEV__) {
     // 暴露属性在渲染器上下文
     exposePropsOnRenderContext(instance)
   }
   // 2. call setup()
-  // 调用setup
+  // 判断处理setup函数
   const { setup } = Component
   // 有setup的话
   if (setup) {
-    // 获取setup上下文this
+    // 如果setup函数带参数，则创建一个setupContext
     const setupContext = (instance.setupContext =
       setup.length > 1 ? createSetupContext(instance) : null)
 
@@ -750,6 +850,7 @@ function setupStatefulComponent(
     setCurrentInstance(instance)
     pauseTracking()
     // 调用setup并获取setup返回值，并且带有报错处理
+    // setup的调用，会将template删除生成一个render函数
     const setupResult = callWithErrorHandling(
       setup,
       instance,
@@ -790,16 +891,23 @@ function setupStatefulComponent(
       }
     } else {
       // 如果setup返回的不是promise，则直接处理返回的结果可
+      // 如果setup返回是一个函数，则将其作为组件的渲染函数
+      // 如果setup返回的是一个对象，则对其做一层代理
+      // 把结果赋值给instance.setupState,
+      // 这样在模板渲染的时候，它会被作为render函数的第4个参数$setup传入
+      // 从而建立setup和模板渲染之间的联系
       handleSetupResult(instance, setupResult, isSSR)
     }
   } else {
-    // 结束组件的安装
+    // 完成组件实例设置
     finishComponentSetup(instance, isSSR)
   }
 }
 
 /**
  * 处理setup的返回结果 setup() {return {}}
+ * 
+ * setupResult不仅支持
  * @param instance 
  * @param setupResult 
  * @param isSSR 
@@ -809,10 +917,10 @@ export function handleSetupResult(
   setupResult: unknown,
   isSSR: boolean
 ) {
-  // setup返回值是函数
+  // setup返回值是函数 这个函数就是该组件的render函数
   if (isFunction(setupResult)) {
     // setup returned an inline render function
-    // 安装程序返回一个内联渲染函数
+    // setup返回一个内联渲染函数
     if (__SSR__ && (instance.type as ComponentOptions).__ssrInlineRender) {
       // when the function's name is `ssrRender` (compiled by SFC inline mode), 
       // set it as ssrRender instead.
@@ -839,7 +947,7 @@ export function handleSetupResult(
       // 开发者工具原始的setup状态赋值
       instance.devtoolsRawSetupState = setupResult
     }
-    // setup状态对setupResult进行代理设置
+    // 对setup返回结果做一层代理
     instance.setupState = proxyRefs(setupResult)
     if (__DEV__) {
       // 暴露setup状态在渲染器上下文上
@@ -883,11 +991,21 @@ export function registerRuntimeCompiler(_compile: any) {
   }
 }
 
-// dev only
-// 判断是不是仅包含运行时
+/**
+ * dev only
+ * 判断是不是仅包含运行时create
+ * @returns 
+ */
 export const isRuntimeOnly = () => !compile
 
-// 结束组件的setup
+
+/**
+ * 标准化模板或者渲染函数
+ * 兼容Options API
+ * @param instance 
+ * @param isSSR 
+ * @param skipOptions 
+ */
 export function finishComponentSetup(
   instance: ComponentInternalInstance,
   isSSR: boolean,
@@ -908,6 +1026,7 @@ export function finishComponentSetup(
   }
 
   // template / render function normalization
+  // 对模板或者渲染函数的标准化
   // could be already set when returned from setup()
   // 如果当前组件没有render，给它生成一个渲染函数
   if (!instance.render) {
@@ -952,6 +1071,7 @@ export function finishComponentSetup(
             extend(finalCompilerOptions.compatConfig, Component.compatConfig)
           }
         }
+        // 运行时编译
         // 组件的渲染函数就是编译出来的代码
         Component.render = compile(template, finalCompilerOptions)
         // 结束编译
@@ -962,6 +1082,7 @@ export function finishComponentSetup(
     }
 
     // 实例的渲染函数就等于组件的渲染函数
+    // 把组件对象的render函数赋值给instance.render属性
     instance.render = (Component.render || NOOP) as InternalRenderFunction
 
     // for runtime-compiled render functions using `with` blocks, the render
@@ -970,6 +1091,7 @@ export function finishComponentSetup(
     // 对于使用' with '块的运行时编译的渲染函数，
     // 使用的渲染代理需要一个不同的' has '处理程序，这会拥有更好的性能，
     // 也只允许一个白名单的全局失败。
+    // 对于使用with块的运行时编译的渲染函数，使用新的渲染上下文的代理
     if (installWithProxy) {
       installWithProxy(instance)
     }
@@ -992,6 +1114,8 @@ export function finishComponentSetup(
   if (__DEV__ && !Component.render && instance.render === NOOP && !isSSR) {
     /* istanbul ignore if */
     if (!compile && Component.template) {
+      // 只编写了tempalte，但使用Runtime-only版本
+      // 因为Runtime+Compiler版本注册了compile方法，而Runtime-only版本并没有
       warn(
         `Component provided template option but ` +
           `runtime compilation is not supported in this build of Vue.` +
@@ -1004,12 +1128,15 @@ export function finishComponentSetup(
             : ``) /* should not happen */
       )
     } else {
+      // 既没有写render函数，也没有写tempalte模板
       warn(`Component is missing template or render function.`)
     }
   }
 }
 
-// 创建组件attrs代理                                            
+/**
+ * 创建组件attrs代理 
+ *  */                                            
 function createAttrsProxy(instance: ComponentInternalInstance): Data {
   return new Proxy(
     instance.attrs,
@@ -1043,7 +1170,11 @@ function createAttrsProxy(instance: ComponentInternalInstance): Data {
   )
 }
 
-// 创建setup上下文
+/**
+ * 创建setup上下文
+ * @param instance 
+ * @returns 
+ */
 export function createSetupContext(
   instance: ComponentInternalInstance
 ): SetupContext {

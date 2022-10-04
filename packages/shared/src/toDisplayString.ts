@@ -11,6 +11,7 @@ import {
 
 /**
  * For converting {{ interpolation }} values to displayed strings.
+ * 用于将{{interpolation}}值转换为显示的字符串
  * @private
  */
 export const toDisplayString = (val: unknown): string => {

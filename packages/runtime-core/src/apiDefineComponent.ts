@@ -213,5 +213,10 @@ export function defineComponent<
  * @returns 
  */
 export function defineComponent(options: unknown) {
-  return isFunction(options) ? { setup: options, name: options.name } : options
+  // 如果options是函数，那么返回一个对象
+  // 让options函数指向其setup属性
+  return isFunction(options) ? { 
+    setup: options, 
+    name: options.name 
+  } : options
 }

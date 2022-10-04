@@ -8,7 +8,12 @@ const templateContainer = doc && doc.createElement('template')
 
 // 节点操作 这个nodeOps里的类型是RendererOptions<Node, Element>中除了patchProp其他所有键值对组成的对象
 export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
-  // 插入，anchor是一个锚点
+  /**
+   * 插入
+   * @param child 插入节点
+   * @param parent 插入节点的父节点
+   * @param anchor child插入的参考节点
+   */
   insert: (child, parent, anchor) => {
     parent.insertBefore(child, anchor || null)
   },
@@ -19,12 +24,25 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
       parent.removeChild(child)
     }
   },
-  // 创建节点  标签、是否是SVG，
+  /**
+   * 创建元素
+   * 底层最终还是通过 document.createElement
+   * 或者document.createElementNS来创建元素
+   * 对比其他平台（如Weex），hostCreateElement函数就不再操作DOM
+   * 而是操作平台相关的API
+   * 这些与平台相关的函数是在创建渲染器阶段作为参数传入的
+   * @param tag 标签
+   * @param isSVG 是否是svg
+   * @param is 表示用户创建Web Component规范的自定义标签
+   * @param props 额外属性
+   * @returns 
+   */
   createElement: (tag, isSVG, is, props): Element => {
     const el = isSVG
       ? doc.createElementNS(svgNS, tag) // svg创建svg标签
       : doc.createElement(tag, is ? { is } : undefined) // 非svg需要去处理is
     // 标签如果是select的话，那要对他的mulitiple单独处理，就是多选
+    // 处理Select标签多选属性
     if (tag === 'select' && props && props.multiple != null) {
       ;(el as HTMLSelectElement).setAttribute('multiple', props.multiple)
     }
@@ -39,7 +57,11 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
   setText: (node, text) => {
     node.nodeValue = text
   },
-  // 设置元素的文本
+  /**
+   * 设置元素的文本
+   * @param el 
+   * @param text 
+   */
   setElementText: (el, text) => {
     el.textContent = text
   },

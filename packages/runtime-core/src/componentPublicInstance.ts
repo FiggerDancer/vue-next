@@ -202,7 +202,9 @@ export type CreateComponentPublicInstance<
  * 在模板中（作为 this 在渲染器选项中）
  */
 export type ComponentPublicInstance<
-  // 属性类型从属性选项中提取
+  /** 
+   * 属性类型从属性选项中提取
+   * */
   P = {}, // props type extracted from props option
   // 原始绑定值从setup中返回
   B = {}, // raw bindings returned from setup()
@@ -300,7 +302,7 @@ const publicPropertiesMap: PublicPropertiesMap = /*#__PURE__*/
 extend(
   Object.create(null),
   {
-    // 获取实例本身
+    /** 获取实例本身 */ 
     $: i => i,
     // 获取实例的dom元素
     $el: i => i.vnode.el,
@@ -362,10 +364,47 @@ export interface ComponentRenderContext {
  * 然后data
  * 如果没缓存则先props，后ctx，然后其他比如混合器，公共属性，css模块，全局
  * 否则先ctx，props，然后混合器，全局
+ * 
+ * 使用Vue-Template-Explorer编译后的render函数
+ * ```js
+ * export function render(_ctx, _cache, $props, $setup, $data, $options) {
+ *  return (_openBlock(), _createElementBlock("template", null, [
+ *    _createElementVNode("div", _hoisted_1, _toDisplayString(_ctx.msg) + " " + _toDisplayString(_ctx.propData), 1)
+ * ]))
+ * }
+ * ```
+ * 
+ * 第一个参数_ctx就是我们创建的上下文代理instance.proxy
+ * 
+ * 尽管使用了accessCache做了缓存优化，但是仍慢于直接访问，模板中数据越多，通过代理访问和直接访问在
+ * 性能上差异越明显
+ * 
+ * Vue SFC Playground编译后的结果
+ * 
+ * ```js
+ * function render(_ctx, _cache, $props, $setup, $data, $options) {
+ *  return (_openBlock(), _createElementBlock("div", _hoisted_1, _toDisplayString($data.msg) + " " + _toDisplayString($props.propData), 1))
+ * }
+ * ```
+ * 
+ * 和纯模板编译工具不同，SFC导出工具的编译过程不仅分析template模板部分，还结合了对script部分代码的分析
+ * 直接用$data.msg替换了_ctx.msg,用$props.propData代替了_ctx.propData
+ * 通过直接访问数据的方法，运行时的性能自然好过ctx代理的方式
+ * 使用.vue单文件开发时就可以起到这个效果
  */
 export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
   /**
    * get 访问器拦截
+   * 
+   * get函数首先处理访问的key不以$开头的情况
+   * 依次setupState、data、props、ctx中的一种
+   * ctx包含Options API中的methods、computed、inject定义的数据
+   * 最后为了兼容vue2可以读取一些其他数据
+   *
+   * 此外get函数对读取数据做了优化，因为按照上述的逻辑要经过很多判断
+   * 所以使用accessCache做了缓存，你上次读数据读的是哪个这次就给你返回那个
+   * 省下了一次调用hasOwn判断的逻辑
+   * 
    * @param param0 
    * @param key 
    * @returns 
@@ -432,9 +471,11 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       } else if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) {
         // 缓存中没有  先从setup中获取，设置缓存并返回
         accessCache![key] = AccessTypes.SETUP
+        // 从 setupState 中获取数据
         return setupState[key]
       } else if (data !== EMPTY_OBJ && hasOwn(data, key)) {
         accessCache![key] = AccessTypes.DATA
+        // 从data中获取数据
         return data[key]
       } else if (
         // only cache other properties when instance has declared (thus stable)
@@ -444,10 +485,12 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
         hasOwn(normalizedProps, key)
       ) {
         accessCache![key] = AccessTypes.PROPS
+        // 从props中获取数据
         return props![key]
       } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) {
         // 上下文
         accessCache![key] = AccessTypes.CONTEXT
+        // 从ctx中获取数据
         return ctx[key]
       } else if (!__FEATURE_OPTIONS_API__ || shouldCacheAccess) {
         // 其他，兼容options api
@@ -455,10 +498,12 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       }
     }
 
+    // 下面是获取一些内部的值
+
     const publicGetter = publicPropertiesMap[key]
     let cssModule, globalProperties
     // public $xxx properties
-    // 公共$xxx属性
+    // 公共$xxx属性或者方法
     if (publicGetter) {
       if (key === '$attrs') {
         track(instance, TrackOpTypes.GET, key)
@@ -467,7 +512,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       return publicGetter(instance)
     } else if (
       // css module (injected by vue-loader)
-      // css模块（通过vue-loader注入）
+      // css模块（通过vue-loader编译的时候注入）
       (cssModule = type.__cssModules) &&
       (cssModule = cssModule[key])
     ) {
@@ -479,7 +524,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       return ctx[key]
     } else if (
       // global properties
-      // 全局属性
+      // 全局定义的属性
       ((globalProperties = appContext.config.globalProperties),
       hasOwn(globalProperties, key))
     ) {
@@ -517,6 +562,8 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
         (key[0] === '$' || key[0] === '_') &&
         hasOwn(data, key)
       ) {
+        // 如果在data中定义的数据以$或_开头，会发出警告
+        // 原因是$和_保留字符，不会做代理
         warn(
           `Property ${JSON.stringify(
             key
@@ -524,6 +571,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
             `character ("$" or "_") and is not proxied on the render context.`
         )
       } else if (instance === currentRenderingInstance) {
+        // 如果没有定义模板中使用的变量，则发出警告
         warn(
           `Property ${JSON.stringify(key)} was accessed during render ` +
             `but is not defined on instance.`
@@ -533,10 +581,10 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
   },
   /**
    * set访问拦截
-   * 先setup=》data
+   * 先setup=>data=>props=>ctx
    * 不允许设置props
    * 不允许设置前缀为$的
-   * 设置全局的
+   * 设置仅作用于组件上下文共享
    * @param param0 
    * @param key 
    * @param value 
@@ -549,12 +597,15 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
   ): boolean {
     const { data, setupState, ctx } = instance
     if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) {
+      // 给setupState赋值
       setupState[key] = value
       return true
     } else if (data !== EMPTY_OBJ && hasOwn(data, key)) {
+      // 给data赋值
       data[key] = value
       return true
     } else if (hasOwn(instance.props, key)) {
+      // 不能直接给props赋值
       __DEV__ &&
         warn(
           `Attempting to mutate prop "${key}". Props are readonly.`,
@@ -563,6 +614,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       return false
     }
     if (key[0] === '$' && key.slice(1) in instance) {
+      // 不能给Vue内部以$开头的保留属性赋值
       __DEV__ &&
         warn(
           `Attempting to mutate public property "${key}". ` +
@@ -579,6 +631,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
           value
         })
       } else {
+        // 给用户自定义数据赋值
         ctx[key] = value
       }
     }
@@ -587,12 +640,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
 
   /**
    * 先从缓存读
-   * data
-   * setup
-   * props
-   * ctx
-   * 公共属性Map
-   * 全局属性
+   * 顺序 缓存->data->setupState->props->ctx->公共属性Map $->全局
    * @param param0 
    * @param key 
    * @returns 
@@ -604,6 +652,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
     key: string
   ) {
     let normalizedProps
+    // 依次判断
     return (
       !!accessCache![key] ||
       (data !== EMPTY_OBJ && hasOwn(data, key)) ||
@@ -656,6 +705,10 @@ if (__DEV__ && !__TEST__) {
 
 /**
  * 运行时编译器公共实例代理处理器
+ * 
+ * 对于使用with块运行时编译的渲染函数，渲染上下文的dialing是RuntimeCompiledPublicInstanceProxyHandlers
+ * 它在之前渲染上下文代理PublicInstanceProxyHandlers的基础上做了扩展
+ * 主要针对has函数的实现
  */
 export const RuntimeCompiledPublicInstanceProxyHandlers = /*#__PURE__*/ extend(
   {},
@@ -671,6 +724,7 @@ export const RuntimeCompiledPublicInstanceProxyHandlers = /*#__PURE__*/ extend(
     },
     // 判断是否存在key，key不可包含_前缀，且必须包含在全局白名单中
     has(_: ComponentRenderContext, key: string) {
+      // 如果key以_开头或者key在全局变量白名单内，则has为false
       const has = key[0] !== '_' && !isGloballyWhitelisted(key)
       if (__DEV__ && !has && PublicInstanceProxyHandlers.has!(_, key)) {
         warn(

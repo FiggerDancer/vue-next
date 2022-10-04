@@ -207,12 +207,23 @@ export type CreateAppFunction<HostElement> = (
 // uid
 let uid = 0
 
-// 获取实例创建函数createApp
+/**
+ * 获取实例创建函数createApp
+ * 
+ * Vue.js利用闭包和函数柯里化的技巧，很好地实现了参数保留。
+ * 在执行app.mount时，不需要传入核心渲染函数render、根组件对象和根props
+ * 因为执行createAppAPI时，render参数已经被保留下来了
+ * 执行createApp时，rootComponent和rootProps两个参数也被保留下来了
+ * @param render 
+ * @param hydrate 
+ * @returns 
+  */
 export function createAppAPI<HostElement>(
   render: RootRenderFunction,
   hydrate?: RootHydrateFunction
 ): CreateAppFunction<HostElement> {
   // rootComponent就是用户传入的根组件
+  /** createApp函数接收两个参数：根组件的对象和根props */
   return function createApp(rootComponent, rootProps = null) {
     // 根节点属性不为undefined或者0  且  rootProps 不是对象，则警告
     if (rootProps != null && !isObject(rootProps)) {
@@ -349,7 +360,13 @@ export function createAppAPI<HostElement>(
         return app
       },
 
-      // rootContainer是我们执行mount时传入的宿主容器
+      /**
+       * rootContainer是我们执行mount时传入的宿主容器
+       * @param rootContainer 
+       * @param isHydrate 
+       * @param isSVG 
+       * @returns 
+       */
       mount(
         rootContainer: HostElement,
         isHydrate?: boolean,
@@ -357,7 +374,7 @@ export function createAppAPI<HostElement>(
       ): any {
         // 初始化流程
         if (!isMounted) {
-          // 创建一个空的vnode
+          // 创建根组件的vnode
           const vnode = createVNode(
             rootComponent as ConcreteComponent,
             rootProps
@@ -383,6 +400,7 @@ export function createAppAPI<HostElement>(
             hydrate(vnode as VNode<Node, Element>, rootContainer as any)
           } else {
             // 首次渲染：把传入vnode转换位dom，然后追加到rootContainer
+            // 利用渲染器渲染vnode
             render(vnode, rootContainer, isSVG)
           }
           // 挂载标记

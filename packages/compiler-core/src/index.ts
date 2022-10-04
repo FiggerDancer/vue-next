@@ -1,6 +1,7 @@
 export { baseCompile } from './compile'
 
 // Also expose lower level APIs & types
+// 暴露了更低层级的api和类型
 export {
   CompilerOptions,
   ParserOptions,

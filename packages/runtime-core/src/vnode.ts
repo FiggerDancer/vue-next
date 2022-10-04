@@ -451,7 +451,7 @@ export function isSameVNodeType(n1: VNode, n2: VNode): boolean {
     // 仅HMR:如果组件已热更新，则强制重新加载。
     return false
   }
-  // type相同且key相同就是相同节点
+  // n1和n2节点的type和key都相同，就是相同节点
   return n1.type === n2.type && n1.key === n2.key
 }
 
@@ -507,6 +507,20 @@ const normalizeRef = ({
   ) as any
 }
 
+/**
+ * 创建基础的VNode对象
+ * 主要针对普通元素节点创建的vnode。
+ * 组件vnode是通过createVNode函数创建的
+ * @param type 
+ * @param props 
+ * @param children 
+ * @param patchFlag 
+ * @param dynamicProps 
+ * @param shapeFlag 
+ * @param isBlockNode 
+ * @param needFullChildrenNormalization 是否标准化子节点
+ * @returns 
+ */
 function createBaseVNode(
   type: VNodeTypes | ClassComponent | typeof NULL_DYNAMIC_COMPONENT,
   props: (Data & VNodeProps) | null = null,
@@ -545,39 +559,52 @@ function createBaseVNode(
     appContext: null
   } as VNode
 
+  // 序列化子节点
   if (needFullChildrenNormalization) {
     normalizeChildren(vnode, children)
     // normalize suspense children
+    // 序列化 suspense 子节点
     if (__FEATURE_SUSPENSE__ && shapeFlag & ShapeFlags.SUSPENSE) {
       ;(type as typeof SuspenseImpl).normalize(vnode)
     }
   } else if (children) {
     // compiled element vnode - if children is passed, only possible types are
     // string or Array.
+    // 被编译过的元素节点，如果传递子元素，只传递可能的类型（字符串或者数组）
     vnode.shapeFlag |= isString(children)
       ? ShapeFlags.TEXT_CHILDREN
       : ShapeFlags.ARRAY_CHILDREN
   }
 
   // validate key
+  // 校验key
   if (__DEV__ && vnode.key !== vnode.key) {
     warn(`VNode created with invalid key (NaN). VNode type:`, vnode.type)
   }
 
+  // 处理Block Tree
   // track vnode for block tree
+  // 跟踪vnode用于生成block tree
   if (
     isBlockTreeEnabled > 0 &&
     // avoid a block node from tracking itself
+    // 避免一个block跟踪自己
     !isBlockNode &&
     // has current parent block
+    // 存在当前父Block
     currentBlock &&
     // presence of a patch flag indicates this node needs patching on updates.
     // component nodes also should always be patched, because even if the
     // component doesn't need to update, it needs to persist the instance on to
     // the next vnode so that it can be properly unmounted later.
+    // 出现补丁标志表示该节点需要在更新时打补丁。
+    // 组件节点也应该总是打补丁，因为即使组件不需要更新
+    // 它需要将实例持久化到下一个vnode，以便稍后可以正确卸载它。
     (vnode.patchFlag > 0 || shapeFlag & ShapeFlags.COMPONENT) &&
     // the EVENTS flag is only for hydration and if it is the only flag, the
     // vnode should not be considered dynamic due to handler caching.
+    // 这个事件标志仅仅用于注水并且如果它是唯一标记
+    // 由于处理程序缓存，Vnode不应该被认为是动态的。
     vnode.patchFlag !== PatchFlags.HYDRATE_EVENTS
   ) {
     currentBlock.push(vnode)
@@ -587,17 +614,28 @@ function createBaseVNode(
     convertLegacyVModelProps(vnode)
     defineLegacyVNodeProperties(vnode)
   }
-
   return vnode
 }
 
 export { createBaseVNode as createElementVNode }
 
-// 开发者环境需要转换参数，生产者环境就不用转换参数
+/**
+ * 开发者环境需要转换参数，生产者环境就不用转换参数
+ */
 export const createVNode = (
   __DEV__ ? createVNodeWithArgsTransform : _createVNode
 ) as typeof _createVNode
 
+/**
+ * 创建组件VNode
+ * @param type 
+ * @param props 
+ * @param children 
+ * @param patchFlag 
+ * @param dynamicProps 
+ * @param isBlockNode 
+ * @returns 
+ */
 function _createVNode(
   type: VNodeTypes | ClassComponent | typeof NULL_DYNAMIC_COMPONENT,
   props: (Data & VNodeProps) | null = null,
@@ -606,17 +644,21 @@ function _createVNode(
   dynamicProps: string[] | null = null,
   isBlockNode = false
 ): VNode {
+  // 判断type是否为空
   if (!type || type === NULL_DYNAMIC_COMPONENT) {
     if (__DEV__ && !type) {
       warn(`Invalid vnode type when creating vnode: ${type}.`)
     }
     type = Comment
   }
-
+  // 判断type是不是一个vnode节点
   if (isVNode(type)) {
     // createVNode receiving an existing vnode. This happens in cases like
     // <component :is="vnode"/>
     // #2078 make sure to merge refs during the clone instead of overwriting it
+    // createVNode接收一个存在的vnode
+    // 这发生在某些情况中（如： <component :is="vnode" />
+    // 确保在克隆过程中合并引用，而不是覆盖它
     const cloned = cloneVNode(type, props, true /* mergeRef: true */)
     if (children) {
       normalizeChildren(cloned, children)
@@ -625,6 +667,8 @@ function _createVNode(
   }
 
   // class component normalization.
+  // class类型的组件序列化
+  // 判断type是不是一个class类型的组件
   if (isClassComponent(type)) {
     type = type.__vccOpts
   }
@@ -635,8 +679,10 @@ function _createVNode(
   }
 
   // class & style normalization.
+  // class和style标准化
   if (props) {
     // for reactive or proxy objects, we need to clone it to enable mutation.
+    // 对于反应性或代理对象，我们需要克隆它以启用突变。
     props = guardReactiveProps(props)!
     let { class: klass, style } = props
     if (klass && !isString(klass)) {
@@ -645,6 +691,7 @@ function _createVNode(
     if (isObject(style)) {
       // reactive state objects need to be cloned since they are likely to be
       // mutated
+      // 响应式状态对象需要被克隆因为他们很可能被修改
       if (isProxy(style) && !isArray(style)) {
         style = extend({}, style)
       }
@@ -653,7 +700,7 @@ function _createVNode(
   }
 
   // encode the vnode type information into a bitmap
-  // 将vnode类型信息编码成一个位图
+  // 对vnode类型信息做了编码
   const shapeFlag = isString(type)
     ? ShapeFlags.ELEMENT // 元素
     : __FEATURE_SUSPENSE__ && isSuspense(type)
@@ -831,7 +878,11 @@ export function createCommentVNode(
     : createVNode(Comment, null, text)
 }
 
-// 序列化虚拟节点
+/**
+ * 标准化虚拟节点
+ * @param child 
+ * @returns 
+ */
 export function normalizeVNode(child: VNodeChild): VNode {
   if (child == null || typeof child === 'boolean') {
     // empty placeholder

@@ -6,22 +6,35 @@ export type Dep = Set<ReactiveEffect> & TrackedMarkers
  * wasTracked and newTracked maintain the status for several levels of effect
  * tracking recursion. One bit per level is used to define whether the dependency
  * was/is tracked.
- * wasTracked 和 newTracked为嵌套的副作用提供跟踪递归维护状态。每个嵌套的层级使用一位来定义是否跟踪依赖关系。
+ * wasTracked 和 newTracked为嵌套的副作用提供跟踪递归维护状态。
+ * 每个嵌套的层级使用一位来定义是否跟踪依赖关系。
+ * 由于存在递归嵌套执行effect函数的场景，需要通过按位标记记录各个层级的依赖状态
+ * 然后设计了几个全局变量：effectTrackDepth、trackOpBit和maxMarkerBits
  */
 type TrackedMarkers = {
   /**
    * wasTracked
-   * 被跟踪
+   * 用于记录已经被收集的依赖
    */
   w: number
   /**
    * newTracked
-   * 新跟踪
+   * 用于记录新依赖
    */
   n: number
 }
 
-// 创建Dep
+/**
+ * 创建依赖集合
+ * 
+ * 在3.0版本，每次执行副作用函数，都需要cleanup清除依赖
+ * 这个过程涉及大量的对集合添加和删除操作
+ * 在大多数情况下，依赖改变是很少的，存在优化空间
+ * 为了减少集合的添加和删除操作，我们需要标识每个依赖集合的状态
+ * 比如它是新收集的，还是已经被收集过的，所以这里需要给集合dep添加两个属性
+ * @param effects 
+ * @returns 
+ */
 export const createDep = (effects?: ReactiveEffect[]): Dep => {
   const dep = new Set<ReactiveEffect>(effects) as Dep
   dep.w = 0

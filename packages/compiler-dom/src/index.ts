@@ -23,6 +23,9 @@ import { extend } from '@vue/shared'
 
 export { parserOptions }
 
+/**
+ * DOM节点转化
+ */
 export const DOMNodeTransforms: NodeTransform[] = [
   transformStyle,
   ...(__DEV__ ? [warnTransitionChildren] : [])
@@ -32,11 +35,17 @@ export const DOMDirectiveTransforms: Record<string, DirectiveTransform> = {
   cloak: noopDirectiveTransform,
   html: transformVHtml,
   text: transformVText,
-  model: transformModel, // override compiler-core
-  on: transformOn, // override compiler-core
+  model: transformModel, // override compiler-core 覆写
+  on: transformOn, // override compiler-core 覆写
   show: transformShow
 }
 
+/**
+ * 编译
+ * @param template 模板
+ * @param options 选项
+ * @returns 
+ */
 export function compile(
   template: string,
   options: CompilerOptions = {}
@@ -48,6 +57,9 @@ export function compile(
         // ignore <script> and <tag>
         // this is not put inside DOMNodeTransforms because that list is used
         // by compiler-ssr to generate vnode fallback branches
+        // 忽视 <script> 和 <tag>
+        // 它没有放在DOMNodeTransforms中，因为ssr编译器使用了该列表
+        // 产生了回退分支虚拟节点
         ignoreSideEffectTags,
         ...DOMNodeTransforms,
         ...(options.nodeTransforms || [])
@@ -62,6 +74,12 @@ export function compile(
   )
 }
 
+/**
+ * 解析
+ * @param template 模板
+ * @param options 选项
+ * @returns 
+ */
 export function parse(template: string, options: ParserOptions = {}): RootNode {
   return baseParse(template, extend({}, parserOptions, options))
 }

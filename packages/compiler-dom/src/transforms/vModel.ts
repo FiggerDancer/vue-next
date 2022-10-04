@@ -15,9 +15,17 @@ import {
   V_MODEL_DYNAMIC
 } from '../runtimeHelpers'
 
+/**
+ * 转化v-model
+ * @param dir 
+ * @param node 
+ * @param context 
+ * @returns 
+ */
 export const transformModel: DirectiveTransform = (dir, node, context) => {
   const baseResult = baseTransform(dir, node, context)
   // base transform has errors OR component v-model (only need props)
+  // 基本的转化有错误或者组件v-model（仅仅需要props）
   if (!baseResult.props.length || node.tagType === ElementTypes.COMPONENT) {
     return baseResult
   }
@@ -31,6 +39,7 @@ export const transformModel: DirectiveTransform = (dir, node, context) => {
     )
   }
 
+  // 检查重复的值，看看v-model是否与正常的重复
   function checkDuplicatedValue() {
     const value = findProp(node, 'value')
     if (value) {
@@ -44,6 +53,7 @@ export const transformModel: DirectiveTransform = (dir, node, context) => {
   }
 
   const { tag } = node
+  // 是web组件
   const isCustomElement = context.isCustomElement(tag)
   if (
     tag === 'input' ||
@@ -51,6 +61,7 @@ export const transformModel: DirectiveTransform = (dir, node, context) => {
     tag === 'select' ||
     isCustomElement
   ) {
+    // 定义好要执行的指令
     let directiveToUse = V_MODEL_TEXT
     let isInvalidType = false
     if (tag === 'input' || isCustomElement) {
@@ -84,10 +95,12 @@ export const transformModel: DirectiveTransform = (dir, node, context) => {
         }
       } else if (hasDynamicKeyVBind(node)) {
         // element has bindings with dynamic keys, which can possibly contain
+        // 元素具有动态键绑定，其中可能包含
         // "type".
         directiveToUse = V_MODEL_DYNAMIC
       } else {
         // text type
+        // 检查重复值
         __DEV__ && checkDuplicatedValue()
       }
     } else if (tag === 'select') {
@@ -99,6 +112,8 @@ export const transformModel: DirectiveTransform = (dir, node, context) => {
     // inject runtime directive
     // by returning the helper symbol via needRuntime
     // the import will replaced a resolveDirective call.
+    // 通过运行时的引入将代替获取指令的回调
+    // 返回帮助函数的symbol注入运行时指令
     if (!isInvalidType) {
       baseResult.needRuntime = context.helper(directiveToUse)
     }
@@ -113,6 +128,9 @@ export const transformModel: DirectiveTransform = (dir, node, context) => {
 
   // native vmodel doesn't need the `modelValue` props since they are also
   // passed to the runtime as `binding.value`. removing it reduces code size.
+  // 原始的v-model不需要modelValue属性
+  // 因为他们总是被传值运行时绑定的value
+  // 移除它减少代码体积
   baseResult.props = baseResult.props.filter(
     p =>
       !(

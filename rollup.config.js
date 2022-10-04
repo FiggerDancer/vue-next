@@ -115,15 +115,23 @@ function createConfig(format, output, plugins = []) {
     pkg.types && process.env.TYPES != null && !hasTSChecked
 
   const tsPlugin = ts({
+    // 是否开启语法检查
     check: process.env.NODE_ENV === 'production' && !hasTSChecked,
+    // 编译配置文件 tsconfig.json 的路径
     tsconfig: path.resolve(__dirname, 'tsconfig.json'),
+    // 缓存的根路径
     cacheRoot: path.resolve(__dirname, 'node_modules/.rts2_cache'),
+    // 覆盖 tsconfig.json 中的一些配置
     tsconfigOverride: {
       compilerOptions: {
+        // 是否开启 source map
         sourceMap: output.sourcemap,
+        // 生成类型定义文件
         declaration: shouldEmitDeclarations,
+        // 生成类型定义文件的map
         declarationMap: shouldEmitDeclarations
       },
+      // 排除测试 TypeScript 文件的编译
       exclude: ['**/__tests__', 'test-dts']
     }
   })
@@ -150,11 +158,15 @@ function createConfig(format, output, plugins = []) {
     if (!packageOptions.enableNonBrowserBranches) {
       // normal browser builds - non-browser only imports are tree-shaken,
       // they are only listed here to suppress warnings.
+      // 正常浏览器构建 非浏览器导入仅仅被摇树
+      // 它们列在这里只是为了压制警告。
       external = ['source-map', '@babel/parser', 'estree-walker']
     }
   } else {
     // Node / esm-bundler builds.
     // externalize all direct deps unless it's the compat build.
+    // Node/esm-bundler的构建要排除所有相关依赖的第三方库
+    // 除非是compat构建
     external = [
       ...Object.keys(pkg.dependencies || {}),
       ...Object.keys(pkg.peerDependencies || {}),
@@ -199,7 +211,7 @@ function createConfig(format, output, plugins = []) {
       : []
 
   return {
-    input: resolve(entryFile),
+    input: resolve(entryFile), // 两个input，一个是runtime.ts,一个是index.ts
     // Global and Browser ESM builds inlines everything so that they can be
     // used alone.
     external,
@@ -248,19 +260,25 @@ function createReplacePlugin(
     __VERSION__: `"${masterVersion}"`,
     __DEV__: isBundlerESMBuild
       ? // preserve to be handled by bundlers
+      // 保存由打包器处理
         `(process.env.NODE_ENV !== 'production')`
-      : // hard coded dev/prod builds
+      : // hard coded dev/prod builds 
+      // 硬编码
         !isProduction,
     // this is only used during Vue's internal tests
+    // 仅在Vue.js内部测试用
     __TEST__: false,
     // If the build is expected to run directly in the browser (global / esm builds)
+    // global/esm构建，直接在浏览器端运行
     __BROWSER__: isBrowserBuild,
     __GLOBAL__: isGlobalBuild,
     __ESM_BUNDLER__: isBundlerESMBuild,
     __ESM_BROWSER__: isBrowserESMBuild,
     // is targeting Node (SSR)?
+    // 目标Node.js
     __NODE_JS__: isNodeBuild,
     // need SSR-specific branches?
+    // 需要SSR特定分支
     __SSR__: isNodeBuild || isBundlerESMBuild,
 
     // for compiler-sfc browser build inlined deps
@@ -292,14 +310,17 @@ function createReplacePlugin(
   }
   // allow inline overrides like
   //__RUNTIME_COMPILE__=true yarn build runtime-core
+  // 允许内联参数覆盖上述配置
   Object.keys(replacements).forEach(key => {
     if (key in process.env) {
       replacements[key] = process.env[key]
     }
   })
   return replace({
+    // 替换的对象位置
     // @ts-ignore
     values: replacements,
+    // 阻止赋值操作等号左侧的替换
     preventAssignment: true
   })
 }
@@ -316,16 +337,20 @@ function createMinifiedConfig(format) {
   return createConfig(
     format,
     {
+      // 把压缩后的目标文件名后缀替换为.prod.js
       file: outputConfigs[format].file.replace(/\.js$/, '.prod.js'),
       format: outputConfigs[format].format
     },
     [
       terser({
+        // 在压缩ES模块的时候开启
         module: /^esm/.test(format),
         compress: {
           ecma: 2015,
+          // 假定对象属性访问，如foo.bar或者foo["bar"]没有任何副作用
           pure_getters: true
         },
+        // 解决Safari 10 循环迭代器错误
         safari10: true
       })
     ]

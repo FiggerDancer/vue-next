@@ -33,6 +33,9 @@ declare module '@vue/reactivity' {
   }
 }
 
+/**
+ * 与平台渲染相关的一些配置，比如更新属性、操作DOM的函数等
+ */
 const rendererOptions = extend({ patchProp }, nodeOps)
 
 // lazy create the renderer - this makes core renderer logic tree-shakable
@@ -42,7 +45,16 @@ let renderer: Renderer<Element | ShadowRoot> | HydrationRenderer
 
 let enabledHydration = false
 
-// 获取一个渲染的实例
+/** 
+ * 延时创建一个渲染器对象
+ * 当用户只依赖响应式包的时候
+ * 可以通过tree-shaking移除与核心渲染逻辑相关的代码
+ * 
+ * why?
+ * 
+ * 这样做的好处是，当用户只依赖响应式包的时候，并不会创建渲染器，
+ * 因此可以通过tree-shaking的方式移除与核心渲染逻辑相关的代码
+ * */ 
 function ensureRenderer() {
   return (
     renderer ||
@@ -69,9 +81,11 @@ export const hydrate = ((...args) => {
   ensureHydrationRenderer().hydrate(...args)
 }) as RootHydrateFunction
 
-// 获取一个Vue实例
+/**
+ * 初始化一个应用程序
+ */
 export const createApp = ((...args) => {
-  // 获取app渲染器
+  // 获取app对象
   const app = ensureRenderer().createApp(...args)
 
   if (__DEV__) {
@@ -81,16 +95,24 @@ export const createApp = ((...args) => {
     injectCompilerOptionsCheck(app)
   }
 
+  // createApp返回的app对象已经有mount函数，为什么要重写app.mount函数？
+  // 因为Vue.js并不仅仅是未Web平台服务，它的目标是跨平台渲染，
+  // createApp内部的app.mount函数是一个标准的可跨平台的组件渲染流程
+
+
   // 扩展mount方法，使用户没有设置render函数或者template选项时可以使用
   // 获取根组件的模板
   const { mount } = app
+  // 重写mount函数
   app.mount = (containerOrSelector: Element | ShadowRoot | string): any => {
     // 获取container实例，并挂载，目的就是防止container为字符串或者ShadowRoot
+    // 标准化容器
     const container = normalizeContainer(containerOrSelector)
     if (!container) return
 
     const component = app._component
     // 如果根组件不是Function，没有render方法也没有template模板
+    // 如果组件对象没有定义render函数和template模板，则取容器的innerHTML作为组件模板内容
     if (!isFunction(component) && !component.render && !component.template) {
       // __UNSAFE__
       // Reason: potential execution of JS expressions in in-DOM template.
@@ -119,7 +141,9 @@ export const createApp = ((...args) => {
 
     // clear content before mounting
     // 挂载前清理内容
+    // 挂载前清空容器内容
     container.innerHTML = ''
+    // 真正的挂载
     const proxy = mount(container, false, container instanceof SVGElement)
     // 如果容器是一个元素的话，就移除v-cloak,并增加data-v-app
     if (container instanceof Element) { 

@@ -69,6 +69,7 @@ function targetTypeMap(rawType: string) {
  * 传入代理对象，判断其是否有可跳过的标记和是否能够扩展（增加新字段）
  * 对于可跳过或者不能够扩展的代理对象归类为失效类型
  * 否则根据原始类型进行归类
+ * 主要包括（Date、RegExp、Promise）
  * @param value 
  * @returns 
  */
@@ -114,6 +115,7 @@ export function reactive<T extends object>(target: T): UnwrapNestedRefs<T>
 export function reactive(target: object) {
   // if trying to observe a readonly proxy, return the readonly version.
   // 如果代理对象为只读类型，则直接返回只读版本即可
+  // 如果尝试把一个readonly proxy变成响应式的，就直接返回这个readonly proxy
   if (isReadonly(target)) {
     return target
   }
@@ -234,6 +236,7 @@ function createReactiveObject(
   // 对于非对象值，在开发环境给与良好的错误警告
   // 使用__DEV__这种环境变量，在生产环境中通过摇树可以删除这段dead_code
   if (!isObject(target)) {
+    // 目标必须是对象或者数组类型
     if (__DEV__) {
       console.warn(`value cannot be made reactive: ${String(target)}`)
     }

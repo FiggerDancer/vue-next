@@ -102,18 +102,28 @@ export const toRawType = (value: unknown): string => {
   return toTypeString(value).slice(8, -1)
 }
 
-// 字面量对象
+/**
+ * 字面量对象
+ * @param val 
+ * @returns 
+ */
 export const isPlainObject = (val: unknown): val is object =>
   toTypeString(val) === '[object Object]'
 
-// 字符串正整型
+/**
+ * 字符串正整型
+ * @param key 
+ * @returns 
+ */
 export const isIntegerKey = (key: unknown) =>
   isString(key) &&
   key !== 'NaN' &&
   key[0] !== '-' &&
   '' + parseInt(key, 10) === key
 
-// 判断是否预留的属性
+/**
+ * 判断是否预留的属性
+ */
 export const isReservedProp = /*#__PURE__*/ makeMap(
   // the leading comma is intentional so empty string "" is also included
   // 开头的逗号是故意而为的，所以空字符串也会被囊括
@@ -123,7 +133,9 @@ export const isReservedProp = /*#__PURE__*/ makeMap(
     'onVnodeBeforeUnmount,onVnodeUnmounted'
 )
 
-// 判断是否是内置指令
+/**
+ * 判断是否是内置指令
+ */
 export const isBuiltInDirective = /*#__PURE__*/ makeMap(
   'bind,cloak,else-if,else,for,html,if,model,on,once,pre,show,slot,text,memo'
 )
@@ -142,7 +154,9 @@ const cacheStringFunction = <T extends (str: string) => string>(fn: T): T => {
   }) as any
 }
 
-// 驼峰的正则
+/**
+ * 驼峰的正则
+ */
 const camelizeRE = /-(\w)/g
 /**
  * @private

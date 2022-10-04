@@ -11,6 +11,15 @@ nr build dom
 
 # specify the format to output
 nr build core --formats cjs
+
+生成产品构建并将d.ts文件拼接在一起。
+
+要指定要构建的包，只需传递它的名称和所需的构建 
+格式输出(默认为buildOptions。在那个包中指定的格式， cjs或esm):
+
+名称支持模糊匹配。将构建所有名称包含"dom"的包: nr构建dom
+
+指定要输出的格式 Nr构建核心——格式CJS
 ```
 */
 
@@ -49,10 +58,16 @@ async function run() {
   }
 }
 
+
 async function buildAll(targets) {
   await runParallel(require('os').cpus().length, targets, build)
 }
 
+/**
+ * buildAll函数只有单个参数，传入targets就是前面获取的编译目标  
+ * buildAll的内部是通过runParallel函数来实现并行编译的
+ * @param {*} targets 
+ */
 async function runParallel(maxConcurrency, source, iteratorFn) {
   const ret = []
   const executing = []
@@ -61,9 +76,12 @@ async function runParallel(maxConcurrency, source, iteratorFn) {
     ret.push(p)
 
     if (maxConcurrency <= source.length) {
+      // 执行完从正在执行的任务中删除掉
       const e = p.then(() => executing.splice(executing.indexOf(e), 1))
       executing.push(e)
+      // 正在执行的任务数超过最大并发数
       if (executing.length >= maxConcurrency) {
+        // 等待优先完成的任务
         await Promise.race(executing)
       }
     }
@@ -71,16 +89,24 @@ async function runParallel(maxConcurrency, source, iteratorFn) {
   return Promise.all(ret)
 }
 
+/**
+ * 真正的编译还是build函数
+ * @param {*} target 
+ * @returns 
+ */
 async function build(target) {
   const pkgDir = path.resolve(`packages/${target}`)
   const pkg = require(`${pkgDir}/package.json`)
 
   // if this is a full build (no specific targets), ignore private packages
+  // 只编译公共包
+  // 如果这是一个完整的构建（非特定的目标）忽略私有包
   if ((isRelease || !targets.length) && pkg.private) {
     return
   }
 
   // if building a specific format, do not remove dist.
+  // 如果正在构建一个特定的格式，不要移除dist
   if (!formats) {
     await fs.remove(`${pkgDir}/dist`)
   }
@@ -88,6 +114,7 @@ async function build(target) {
   const env =
     (pkg.buildOptions && pkg.buildOptions.env) ||
     (devOnly ? 'development' : 'production')
+  // 执行rollup命令，运行rollup打包工具
   await execa(
     'rollup',
     [

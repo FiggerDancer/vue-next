@@ -14,6 +14,8 @@ import { DebuggerEvent, pauseTracking, resetTracking } from '@vue/reactivity'
 
 export { onActivated, onDeactivated } from './components/KeepAlive'
 
+// 除了错误捕获钩子，其他钩子都是通过向createHook传入不同的字符串来创建的
+
 /**
  * 注入钩子
  * @param type 
@@ -37,6 +39,9 @@ export function injectHook(
     // 缓存错误处理包装器用于注入钩子，所以相同的钩子
     // 调度器会去重
     // __weh 代表错误处理
+    /**
+     * 封装钩子函数并缓存
+     */
     const wrappedHook =
       hook.__weh ||
       (hook.__weh = (...args: unknown[]) => {
@@ -45,20 +50,23 @@ export function injectHook(
         }
         // disable tracking inside all lifecycle hooks
         // since they can potentially be called inside effects.
+        // 停止依赖收集
         // 禁止跟踪所有生命周期钩子的内容
         // 因为他们可能会被内部的副作用所调用
         pauseTracking()
         // Set currentInstance during hook invocation.
         // This assumes the hook does not synchronously trigger other hooks, which
         // can only be false when the user does something really funky.
+        // 设置target为当前运行的组件实例
         // 在钩子调用期间设置当前实例
         // 这假定钩子不会同步触发其他钩子，
         // 这可能仅仅是false 当用户做一些真的很奇怪的事情
         setCurrentInstance(target)
-        // 异步错误处理
+        // 执行钩子函数
         const res = callWithAsyncErrorHandling(hook, target, type, args)
         // 重置当前实例
         unsetCurrentInstance()
+        // 恢复依赖收集
         // 重新追踪
         resetTracking()
         return res
@@ -110,25 +118,37 @@ export const onBeforeUnmount = createHook(LifecycleHooks.BEFORE_UNMOUNT)
 export const onUnmounted = createHook(LifecycleHooks.UNMOUNTED)
 export const onServerPrefetch = createHook(LifecycleHooks.SERVER_PREFETCH)
 
-// 调试钩子
+/**
+ * 调试钩子
+ */
 export type DebuggerHook = (e: DebuggerEvent) => void
-// 创建渲染触发钩子
+/**
+ * 创建渲染触发钩子
+ */
 export const onRenderTriggered = createHook<DebuggerHook>(
   LifecycleHooks.RENDER_TRIGGERED
 )
-// 创建渲染跟踪钩子
+/**
+ * 创建渲染跟踪钩子
+ */
 export const onRenderTracked = createHook<DebuggerHook>(
   LifecycleHooks.RENDER_TRACKED
 )
 
-// 错误捕获钩子
+/**
+ * 错误捕获钩子
+ */
 export type ErrorCapturedHook<TError = unknown> = (
   err: TError,
   instance: ComponentPublicInstance | null,
   info: string
 ) => boolean | void
 
-// 错误捕获
+/**
+ * 错误捕获钩子
+ * @param hook 
+ * @param target 
+ */
 export function onErrorCaptured<TError = Error>(
   hook: ErrorCapturedHook<TError>,
   target: ComponentInternalInstance | null = currentInstance

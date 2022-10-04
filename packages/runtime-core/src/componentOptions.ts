@@ -438,6 +438,9 @@ interface LegacyOptions<
   filters?: Record<string, Function>
 
   // composition
+  /**
+   * 组合
+   */
   mixins?: Mixin[]
   extends?: Extends
 
@@ -528,6 +531,10 @@ const enum OptionTypes {
   INJECT = 'Inject'
 }
 
+/**
+ * 创建重复值检查器（利用了柯里化）
+ * @returns 
+ */
 function createDuplicateChecker() {
   const cache = Object.create(null)
   return (type: OptionTypes, key: string) => {
@@ -541,16 +548,25 @@ function createDuplicateChecker() {
 
 export let shouldCacheAccess = true
 
+/**
+ * 兼容Vue2的options写法
+ * @param instance 
+ */
 export function applyOptions(instance: ComponentInternalInstance) {
+  // 处理全局mixins->extend->本地mixin
   const options = resolveMergedOptions(instance)
+
+  // instance.proxy作为this
   const publicThis = instance.proxy! as any
   const ctx = instance.ctx
 
   // do not cache property access on public proxy during state initialization
+  // 状态初始化期间不缓存公共代理上的属性访问
   shouldCacheAccess = false
 
   // call beforeCreate first before accessing other options since
   // the hook may mutate resolved options (#2791)
+  // 在访问其他选项之前先调用beforeCreate 因为钩子可能会改变解析选项(#2791)
   if (options.beforeCreate) {
     callHook(options.beforeCreate, instance, LifecycleHooks.BEFORE_CREATE)
   }
@@ -589,8 +605,10 @@ export function applyOptions(instance: ComponentInternalInstance) {
     filters
   } = options
 
+  // 检查重复的属性
   const checkDuplicateProperties = __DEV__ ? createDuplicateChecker() : null
 
+  // 检查是否存在重复的属性
   if (__DEV__) {
     const [propsOptions] = instance.propsOptions
     if (propsOptions) {
@@ -607,7 +625,10 @@ export function applyOptions(instance: ComponentInternalInstance) {
   // - data (deferred since it relies on `this` access)
   // - computed
   // - watch (deferred since it relies on `this` access)
+  // options初始化顺序和vue2保持一致
+  // props（已经在该函数外执行完毕）->inject->methods->data（延迟，因为它依赖于this的访问）->computed->watch（延迟，因为它依赖于this的访问）
 
+  // 处理inject
   if (injectOptions) {
     resolveInjections(
       injectOptions,
@@ -617,6 +638,7 @@ export function applyOptions(instance: ComponentInternalInstance) {
     )
   }
 
+  // 处理method
   if (methods) {
     for (const key in methods) {
       const methodHandler = (methods as MethodOptions)[key]
@@ -646,6 +668,7 @@ export function applyOptions(instance: ComponentInternalInstance) {
     }
   }
 
+  // 处理data
   if (dataOptions) {
     if (__DEV__ && !isFunction(dataOptions)) {
       warn(
@@ -683,11 +706,15 @@ export function applyOptions(instance: ComponentInternalInstance) {
   }
 
   // state initialization complete at this point - start caching access
+  // 此时状态初始化完成—开始缓存访问
   shouldCacheAccess = true
 
+  // 处理计算属性
   if (computedOptions) {
     for (const key in computedOptions) {
       const opt = (computedOptions as ComputedOptions)[key]
+      // computed属性是函数则直接返回这个函数，并绑定this指向这个组件的代理
+      // computed属性不是函数则获取其get，并绑定代理
       const get = isFunction(opt)
         ? opt.bind(publicThis, publicThis)
         : isFunction(opt.get)
@@ -696,6 +723,7 @@ export function applyOptions(instance: ComponentInternalInstance) {
       if (__DEV__ && get === NOOP) {
         warn(`Computed property "${key}" has no getter.`)
       }
+      // 获取其set
       const set =
         !isFunction(opt) && isFunction(opt.set)
           ? opt.set.bind(publicThis)
@@ -706,10 +734,12 @@ export function applyOptions(instance: ComponentInternalInstance) {
               )
             }
           : NOOP
+      // 用composition-api的方式来搞
       const c = computed({
         get,
         set
       })
+      // 定义一个访问器，模拟计算属性
       Object.defineProperty(ctx, key, {
         enumerable: true,
         configurable: true,
@@ -722,25 +752,35 @@ export function applyOptions(instance: ComponentInternalInstance) {
     }
   }
 
+  // 处理watch
   if (watchOptions) {
     for (const key in watchOptions) {
       createWatcher(watchOptions[key], ctx, publicThis, key)
     }
   }
 
+  // 处理provide
   if (provideOptions) {
+    // 如果provideOptions是函数，则转化成对象
     const provides = isFunction(provideOptions)
       ? provideOptions.call(publicThis)
       : provideOptions
+    // 遍历所有provides的key，并provide给组价
     Reflect.ownKeys(provides).forEach(key => {
       provide(key, provides[key])
     })
   }
 
+  // 处理生命周期钩子
   if (created) {
     callHook(created, instance, LifecycleHooks.CREATED)
   }
 
+  /**
+   * 注册声明周期钩子,钩子是数组就遍历，是函数就直接绑定
+   * @param register 
+   * @param hook 
+   */
   function registerLifecycleHook(
     register: Function,
     hook?: Function | Function[]
@@ -766,6 +806,7 @@ export function applyOptions(instance: ComponentInternalInstance) {
   registerLifecycleHook(onServerPrefetch, serverPrefetch)
 
   if (__COMPAT__) {
+    // vue2 兼容性处理， beforeUnmount和beforeDestroy, unmount和destroyed
     if (
       beforeDestroy &&
       softAssertCompatEnabled(DeprecationTypes.OPTIONS_BEFORE_DESTROY, instance)
@@ -780,6 +821,7 @@ export function applyOptions(instance: ComponentInternalInstance) {
     }
   }
 
+  // 处理expose
   if (isArray(expose)) {
     if (expose.length) {
       const exposed = instance.exposed || (instance.exposed = {})
@@ -796,53 +838,75 @@ export function applyOptions(instance: ComponentInternalInstance) {
 
   // options that are handled when creating the instance but also need to be
   // applied from mixins
+  // 在创建实例时处理的选项，但也需要从mixins应用
+  // 处理render
   if (render && instance.render === NOOP) {
     instance.render = render as InternalRenderFunction
   }
+  // 处理inheritAttrs
   if (inheritAttrs != null) {
     instance.inheritAttrs = inheritAttrs
   }
 
   // asset options.
+  // 处理组件
   if (components) instance.components = components as any
+  // 处理指令
   if (directives) instance.directives = directives
   if (
     __COMPAT__ &&
     filters &&
     isCompatEnabled(DeprecationTypes.FILTERS, instance)
   ) {
+    // 兼容filter
     instance.filters = filters
   }
 }
 
+/**
+ * 处理注入
+ * @param injectOptions 
+ * @param ctx 
+ * @param checkDuplicateProperties 
+ * @param unwrapRef 
+ */
 export function resolveInjections(
   injectOptions: ComponentInjectOptions,
   ctx: any,
   checkDuplicateProperties = NOOP as any,
   unwrapRef = false
 ) {
+  // 注入是数组，标准化注入选项
   if (isArray(injectOptions)) {
     injectOptions = normalizeInject(injectOptions)!
   }
+  // 遍历注入选项
   for (const key in injectOptions) {
+    // 获取选项
     const opt = (injectOptions as ObjectInjectOptions)[key]
     let injected: unknown
     if (isObject(opt)) {
+      // 注入的是一个对象
       if ('default' in opt) {
+        // 如果它有默认值
         injected = inject(
           opt.from || key,
           opt.default,
-          true /* treat default function as factory */
+          true /* treat default function as factory 将默认函数视为工厂 */
         )
       } else {
+        // 没有默认值
         injected = inject(opt.from || key)
       }
     } else {
+      // 如果不是一个对象
       injected = inject(opt)
     }
     if (isRef(injected)) {
       // TODO remove the check in 3.3
+      // 在3.3中将会移除该检查
       if (unwrapRef) {
+        // 如果选定要拆ref，则返回的值会从ref中拆出来
         Object.defineProperty(ctx, key, {
           enumerable: true,
           configurable: true,
@@ -851,6 +915,8 @@ export function resolveInjections(
         })
       } else {
         if (__DEV__) {
+          // 警告：inject属性xxx是一个ref并且将被自动拆包并且不再需要.value在接下来发布的版本中
+          // 设置app.config.unwrapInjectedRef = true 这个配置是临时的以后将废除
           warn(
             `injected property "${key}" is a ref and will be auto-unwrapped ` +
               `and no longer needs \`.value\` in the next minor release. ` +
@@ -862,6 +928,7 @@ export function resolveInjections(
         ctx[key] = injected
       }
     } else {
+      // 不是Ref不是数组
       ctx[key] = injected
     }
     if (__DEV__) {
@@ -924,6 +991,10 @@ export function createWatcher(
  * Resolve merged options and cache it on the component.
  * This is done only once per-component since the merging does not involve
  * instances.
+ * 
+ * 解决合并选项并且将它缓存在组件上
+ * 每个组件只执行一次，因为合并不涉及实例
+ * 合并顺序 全局mixins->extend->本地mixins
  */
 export function resolveMergedOptions(
   instance: ComponentInternalInstance
@@ -940,12 +1011,15 @@ export function resolveMergedOptions(
   let resolved: MergedComponentOptions
 
   if (cached) {
+    // 如果缓存中，则直接用之前缓存好的
     resolved = cached
   } else if (!globalMixins.length && !mixins && !extendsOptions) {
+    // 没有全局mixins也没有本地mixins也没有extend
     if (
       __COMPAT__ &&
       isCompatEnabled(DeprecationTypes.PRIVATE_APIS, instance)
     ) {
+      // 兼容vue2的处理是extend，并且可以获取到parent和propsData
       resolved = extend({}, base) as MergedComponentOptions
       resolved.parent = instance.parent && instance.parent.proxy
       resolved.propsData = instance.vnode.props
@@ -954,14 +1028,17 @@ export function resolveMergedOptions(
     }
   } else {
     resolved = {}
+    // 合并全局的
     if (globalMixins.length) {
       globalMixins.forEach(m =>
         mergeOptions(resolved, m, optionMergeStrategies, true)
       )
     }
+    // 合并本地的
     mergeOptions(resolved, base, optionMergeStrategies)
   }
 
+  // 设置缓存方便下次再用
   cache.set(base, resolved)
   return resolved
 }

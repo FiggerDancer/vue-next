@@ -7,7 +7,9 @@ import { warn } from './warning'
 export interface InjectionKey<T> extends Symbol {}
 
 /**
- * 提供的键值对
+ * 依赖注入
+ * 
+ * 创建组件实例的时候组件实例的provides对象就指向父组件实例的provides对象
  * @param key 
  * @param value 
  */

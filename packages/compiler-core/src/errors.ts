@@ -1,26 +1,55 @@
 import { SourceLocation } from './ast'
 
+/**
+ * 编译错误
+ * code 代码
+ * loc 位置
+ */
 export interface CompilerError extends SyntaxError {
   code: number | string
   loc?: SourceLocation
 }
 
+/**
+ * 编译错误
+ * code 代码
+ */
 export interface CoreCompilerError extends CompilerError {
   code: ErrorCodes
 }
 
+/**
+ * 抛出错误
+ * @param error 
+ */
 export function defaultOnError(error: CompilerError) {
   throw error
 }
 
+/**
+ * 警告
+ * @param msg 
+ */
 export function defaultOnWarn(msg: CompilerError) {
   __DEV__ && console.warn(`[Vue warn] ${msg.message}`)
 }
 
+/**
+ * 推断编译器错误
+ * T是 ErrorCodes则属于核心编译器错误，否则编译器错误
+ */
 type InferCompilerError<T> = T extends ErrorCodes
   ? CoreCompilerError
   : CompilerError
 
+/**
+ * 创建编译器错误
+ * @param code 代码
+ * @param loc 位置
+ * @param messages 信息
+ * @param additionalMessage 额外的信息
+ * @returns 
+ */
 export function createCompilerError<T extends number>(
   code: T,
   loc?: SourceLocation,
@@ -31,77 +60,92 @@ export function createCompilerError<T extends number>(
     __DEV__ || !__BROWSER__
       ? (messages || errorMessages)[code] + (additionalMessage || ``)
       : code
+  // 生成一个错误实例
   const error = new SyntaxError(String(msg)) as InferCompilerError<T>
+  // 设置错误的code和位置
   error.code = code
   error.loc = loc
+  // 并返回错误实例
   return error
 }
 
+/**
+ * 错误枚举
+ */
 export const enum ErrorCodes {
   // parse errors
-  ABRUPT_CLOSING_OF_EMPTY_COMMENT,
-  CDATA_IN_HTML_CONTENT,
-  DUPLICATE_ATTRIBUTE,
-  END_TAG_WITH_ATTRIBUTES,
-  END_TAG_WITH_TRAILING_SOLIDUS,
-  EOF_BEFORE_TAG_NAME,
-  EOF_IN_CDATA,
-  EOF_IN_COMMENT,
-  EOF_IN_SCRIPT_HTML_COMMENT_LIKE_TEXT,
-  EOF_IN_TAG,
-  INCORRECTLY_CLOSED_COMMENT,
-  INCORRECTLY_OPENED_COMMENT,
-  INVALID_FIRST_CHARACTER_OF_TAG_NAME,
-  MISSING_ATTRIBUTE_VALUE,
-  MISSING_END_TAG_NAME,
-  MISSING_WHITESPACE_BETWEEN_ATTRIBUTES,
-  NESTED_COMMENT,
-  UNEXPECTED_CHARACTER_IN_ATTRIBUTE_NAME,
-  UNEXPECTED_CHARACTER_IN_UNQUOTED_ATTRIBUTE_VALUE,
-  UNEXPECTED_EQUALS_SIGN_BEFORE_ATTRIBUTE_NAME,
-  UNEXPECTED_NULL_CHARACTER,
-  UNEXPECTED_QUESTION_MARK_INSTEAD_OF_TAG_NAME,
-  UNEXPECTED_SOLIDUS_IN_TAG,
+  // 解析错误
+  ABRUPT_CLOSING_OF_EMPTY_COMMENT, // 突然关闭空注释
+  CDATA_IN_HTML_CONTENT, // CDATA出现在HTML内容汇总
+  DUPLICATE_ATTRIBUTE, // 重复属性
+  END_TAG_WITH_ATTRIBUTES, // 闭合标签携带了属性
+  END_TAG_WITH_TRAILING_SOLIDUS, // 闭合标签尾部带有斜线
+  EOF_BEFORE_TAG_NAME, // 标签名称前的分析
+  EOF_IN_CDATA, // CDATA分析
+  EOF_IN_COMMENT, // 注释分析
+  EOF_IN_SCRIPT_HTML_COMMENT_LIKE_TEXT, // 在脚本HTML注释像是文本一样的解析
+  EOF_IN_TAG, // 在标签中的分析
+  INCORRECTLY_CLOSED_COMMENT, // 不正确的关闭注释
+  INCORRECTLY_OPENED_COMMENT, // 不正确的打开注释
+  INVALID_FIRST_CHARACTER_OF_TAG_NAME, // 失效的标签名首字母
+  MISSING_ATTRIBUTE_VALUE, // 缺少属性值
+  MISSING_END_TAG_NAME, // 缺少闭合标签名称
+  MISSING_WHITESPACE_BETWEEN_ATTRIBUTES, // 缺少属性之间的空格
+  NESTED_COMMENT, // 嵌套注释
+  UNEXPECTED_CHARACTER_IN_ATTRIBUTE_NAME, // 不被期待的字符出现在属性名称中
+  UNEXPECTED_CHARACTER_IN_UNQUOTED_ATTRIBUTE_VALUE, // 不被期待的字符出现在属性
+  UNEXPECTED_EQUALS_SIGN_BEFORE_ATTRIBUTE_NAME, // 不憋期待的等于号出现在属性名称前
+  UNEXPECTED_NULL_CHARACTER, // 不被期待的空值字符
+  UNEXPECTED_QUESTION_MARK_INSTEAD_OF_TAG_NAME, // 不被期待的问题标记而不是标签名称
+  UNEXPECTED_SOLIDUS_IN_TAG, // 不被期待的斜线在标签中
 
   // Vue-specific parse errors
-  X_INVALID_END_TAG,
-  X_MISSING_END_TAG,
-  X_MISSING_INTERPOLATION_END,
-  X_MISSING_DIRECTIVE_NAME,
-  X_MISSING_DYNAMIC_DIRECTIVE_ARGUMENT_END,
+  // Vue转有解析错误
+  X_INVALID_END_TAG, // x失效的闭合标签
+  X_MISSING_END_TAG, // 丢失闭合标签
+  X_MISSING_INTERPOLATION_END, // 丢失插值结束符号}}
+  X_MISSING_DIRECTIVE_NAME, // 丢失指令名称
+  X_MISSING_DYNAMIC_DIRECTIVE_ARGUMENT_END, // 丢失动态指令参数
 
   // transform errors
-  X_V_IF_NO_EXPRESSION,
-  X_V_IF_SAME_KEY,
-  X_V_ELSE_NO_ADJACENT_IF,
-  X_V_FOR_NO_EXPRESSION,
-  X_V_FOR_MALFORMED_EXPRESSION,
-  X_V_FOR_TEMPLATE_KEY_PLACEMENT,
-  X_V_BIND_NO_EXPRESSION,
-  X_V_ON_NO_EXPRESSION,
-  X_V_SLOT_UNEXPECTED_DIRECTIVE_ON_SLOT_OUTLET,
-  X_V_SLOT_MIXED_SLOT_USAGE,
-  X_V_SLOT_DUPLICATE_SLOT_NAMES,
-  X_V_SLOT_EXTRANEOUS_DEFAULT_SLOT_CHILDREN,
-  X_V_SLOT_MISPLACED,
-  X_V_MODEL_NO_EXPRESSION,
-  X_V_MODEL_MALFORMED_EXPRESSION,
-  X_V_MODEL_ON_SCOPE_VARIABLE,
-  X_INVALID_EXPRESSION,
-  X_KEEP_ALIVE_INVALID_CHILDREN,
+  // 转化错误
+  X_V_IF_NO_EXPRESSION, // v-if无表达式
+  X_V_IF_SAME_KEY, // v-if key相同
+  X_V_ELSE_NO_ADJACENT_IF, // v-else 没有对应的if
+  X_V_FOR_NO_EXPRESSION, // v-for无表达式
+  X_V_FOR_MALFORMED_EXPRESSION, // v-for有一个不正确的表达式
+  X_V_FOR_TEMPLATE_KEY_PLACEMENT, // v-for 模板key放置
+  X_V_BIND_NO_EXPRESSION, // v-bind无表达式
+  X_V_ON_NO_EXPRESSION, // v-on无表达式
+  X_V_SLOT_UNEXPECTED_DIRECTIVE_ON_SLOT_OUTLET, // v-slot不被期待的指令在插槽上
+  X_V_SLOT_MIXED_SLOT_USAGE, // v-slot混合插槽使用
+  X_V_SLOT_DUPLICATE_SLOT_NAMES, // v-slot重复插槽名称
+  X_V_SLOT_EXTRANEOUS_DEFAULT_SLOT_CHILDREN, // v-slot没有关联默认插槽子节点
+  X_V_SLOT_MISPLACED, // v-slot没有被放置
+  X_V_MODEL_NO_EXPRESSION, // v-model无表达式
+  X_V_MODEL_MALFORMED_EXPRESSION, // v-model值是一个畸形表达式
+  X_V_MODEL_ON_SCOPE_VARIABLE, // v-model在作用域变量上
+  X_INVALID_EXPRESSION, // 失效表达式
+  X_KEEP_ALIVE_INVALID_CHILDREN, // keep-alive失效子节点
 
   // generic errors
-  X_PREFIX_ID_NOT_SUPPORTED,
-  X_MODULE_MODE_NOT_SUPPORTED,
-  X_CACHE_HANDLER_NOT_SUPPORTED,
-  X_SCOPE_ID_NOT_SUPPORTED,
+  // 一般错误
+  X_PREFIX_ID_NOT_SUPPORTED, // 前缀Id不支持
+  X_MODULE_MODE_NOT_SUPPORTED, // Module模式不支持
+  X_CACHE_HANDLER_NOT_SUPPORTED, // 缓存处理不支持
+  X_SCOPE_ID_NOT_SUPPORTED, // 作用域Id不支持
 
   // Special value for higher-order compilers to pick up the last code
   // to avoid collision of error codes. This should always be kept as the last
   // item.
+  // 特殊值用于更高级的编译器拾取最后的代码来避免错误代码冲突
+  // 这应该总是被放在最后
   __EXTEND_POINT__
 }
 
+/**
+ * 对应上面错误的信息提示
+ */
 export const errorMessages: Record<ErrorCodes, string> = {
   // parse errors
   [ErrorCodes.ABRUPT_CLOSING_OF_EMPTY_COMMENT]: 'Illegal comment.',

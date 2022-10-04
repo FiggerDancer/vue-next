@@ -67,11 +67,11 @@ export const ErrorTypeStrings: Record<number | string, string> = {
 export type ErrorTypes = LifecycleHooks | ErrorCodes
 
 /**
- * 错误处理函数
- * @param fn 
- * @param instance 
- * @param type 
- * @param args 
+ * 执行某个函数，并捕获和处理函数执行期间的错误
+ * @param fn 表示要执行的函数
+ * @param instance 表示组件实例对象
+ * @param type 表示错误类型
+ * @param args 表示执行fn时传入的参数
  * @returns 
  */
 export function callWithErrorHandling(
@@ -94,10 +94,10 @@ export function callWithErrorHandling(
 
 /**
  * 使用异步错误处理函数
- * @param fn 
- * @param instance 
- * @param type 
- * @param args 
+ * @param fn 表示要执行的函数
+ * @param instance 表示组件实例对象
+ * @param type 表示错误类型
+ * @param args 表示执行fn时传入的参数
  * @returns 
  */
 export function callWithAsyncErrorHandling(
@@ -131,10 +131,10 @@ export function callWithAsyncErrorHandling(
 
 /**
  * 处理错误
- * @param err 
- * @param instance 
- * @param type 
- * @param throwInDev 
+ * @param err 被捕获的错误对象
+ * @param instance 组件实例
+ * @param type 错误类型
+ * @param throwInDev 开发环境下直接抛出错误，阻止应用程序继续执行
  * @returns 
  */
 export function handleError(
@@ -153,9 +153,10 @@ export function handleError(
     // 被暴露的实例是渲染器代理，以保持与2.x一致
     const exposedInstance = instance.proxy
     // in production the hook receives only the error code
-    // 在生产环境 钩子接收错误代码
+    // 在生产环境 钩子接收错误代码 获取错误信息
     const errorInfo = __DEV__ ? ErrorTypeStrings[type] : type
-    // 从下往上递归找父节点，一直到根
+    // 从下往上递归找父节点，一直到根 
+    // 尝试向上查找所有父组件，执行errorCaptured钩子函数
     while (cur) {
       // 错误捕获钩子
       const errorCapturedHooks = cur.ec
@@ -164,6 +165,7 @@ export function handleError(
         // 遍历错误捕获的钩子，如果错误捕获钩子的返回值是false，则结束遍历
         for (let i = 0; i < errorCapturedHooks.length; i++) {
           if (
+            // 如果执行errorCaptured 钩子函数返回false，则停止向上查找
             errorCapturedHooks[i](err, exposedInstance, errorInfo) === false
           ) {
             return

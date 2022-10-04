@@ -11,17 +11,26 @@ import { TRANSITION, TRANSITION_GROUP } from './runtimeHelpers'
 import { decodeHtml } from './decodeHtml'
 import { decodeHtmlBrowser } from './decodeHtmlBrowser'
 
+/**
+ * 原始文本容器 style，iframe，script，noscript，这里面的文本是不需要变化的
+ */
 const isRawTextContainer = /*#__PURE__*/ makeMap(
   'style,iframe,script,noscript',
   true
 )
 
+/**
+ * DOM命名空间
+ */
 export const enum DOMNamespaces {
   HTML = Namespaces.HTML,
   SVG,
   MATH_ML
 }
 
+/**
+ * 解析器选项
+ */
 export const parserOptions: ParserOptions = {
   isVoidTag,
   isNativeTag: tag => isHTMLTag(tag) || isSVGTag(tag),

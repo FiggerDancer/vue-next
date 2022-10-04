@@ -43,6 +43,9 @@ export const IS_MEMO_SAME = Symbol(__DEV__ ? `isMemoSame` : ``)
 // Name mapping for runtime helpers that need to be imported from 'vue' in
 // generated code. Make sure these are correctly exported in the runtime!
 // Using `any` here because TS doesn't allow symbols as index type.
+// 名称映射用于运行是帮助函数那些需要从vue中引入的在生成代码的时候用
+// 保证这些函数都能在运行被正确的暴露
+// 使用any因为ts不允许symbols作为一个索引类型
 export const helperNameMap: any = {
   [FRAGMENT]: `Fragment`,
   [TELEPORT]: `Teleport`,
