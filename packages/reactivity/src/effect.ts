@@ -144,6 +144,7 @@ export class ReactiveEffect<T = any> {
   allowRecurse?: boolean // 允许嵌套
   /**
    * @internal
+   * 执行后停止
    */
   private deferStop?: boolean
 
@@ -193,11 +194,16 @@ export class ReactiveEffect<T = any> {
       // 若不是，直接执行原始函数
       return this.fn()
     }
-    // 赋值当前activeEffect给parent吗，但在这个函数里我并没有看到它被使用，猜测是副作用？，因为它把它的包含它的副作用函数相当于遍历了一遍。
+    // 赋值当前activeEffect给parent吗，
+    // 但在这个函数里我并没有看到它被使用，
+    // 猜测是副作用？，因为它把它的包含它的副作用函数相当于遍历了一遍。
+    /**
+     * 根effect
+     */
     let parent: ReactiveEffect | undefined = activeEffect
     // 上次是否允许跟踪
     let lastShouldTrack = shouldTrack
-    // 找到根副作用函数
+    // 找到根effect赋值给parent
     while (parent) {
       if (parent === this) {
         return
@@ -207,6 +213,7 @@ export class ReactiveEffect<T = any> {
     try {
       // 更换当前正在执行的副作用函数，并且建立副作用函数嵌套从属关系
       this.parent = activeEffect
+      // 令当前的effect为当前激活的effect
       activeEffect = this
       // 开启全局 shouldTrack，允许依赖收集
       shouldTrack = true // 允许跟踪
@@ -230,19 +237,20 @@ export class ReactiveEffect<T = any> {
       return this.fn() 
     } finally {
       if (effectTrackDepth <= maxMarkerBits) { 
-        // 清理标记
+        // 完成依赖小计
         finalizeDepMarkers(this)
       }
 
-      // 跟踪完了深度-1
+      // 收集完了恢复到上一级
       trackOpBit = 1 << --effectTrackDepth // 深度--
 
-      // 更换当前正在执行的副作用函数
+      // 更换当前正在执行的effect
       activeEffect = this.parent 
       // 恢复 shouldTrack 开启之前的状态
       shouldTrack = lastShouldTrack 
       this.parent = undefined
 
+      // 延迟停止
       if (this.deferStop) {
         this.stop()
       }
@@ -390,22 +398,30 @@ export function stop(runner: ReactiveEffectRunner) {
  * 是否应该收集依赖
  */
 export let shouldTrack = true
-// 跟踪栈
+/**
+ * 收集栈
+ */
 const trackStack: boolean[] = []
 
-// 暂停跟踪
+/**
+ * 暂停收集依赖
+ */
 export function pauseTracking() {
   trackStack.push(shouldTrack)
   shouldTrack = false
 }
 
-// 允许跟踪
+/**
+ * 允许收集依赖
+ */
 export function enableTracking() {
   trackStack.push(shouldTrack)
   shouldTrack = true
 }
 
-// 退回到上一步，上一步是否允许跟踪
+/**
+ * 退回到上一步，上一步是否允许收集依赖
+ */
 export function resetTracking() {
   const last = trackStack.pop()
   shouldTrack = last === undefined ? true : last
@@ -454,10 +470,10 @@ export function trackEffects(
   if (effectTrackDepth <= maxMarkerBits) {
     // effect的深度没有超出32位
     if (!newTracked(dep)) {
-      // 通过按位与判断是否是一个新的effect
-      // set newly tracked 跟踪新设
+      // set newly tracked 
+      // 标记新依赖
       dep.n |= trackOpBit 
-      // 该dep之前没有被跟踪则可以跟踪
+      // 如果该依赖之前并未被收集，则收集该依赖
       shouldTrack = !wasTracked(dep) 
     }
   } else {
@@ -597,6 +613,11 @@ export function trigger(
   }
 }
 
+/**
+ * 触发effects
+ * @param dep 
+ * @param debuggerEventExtraInfo 
+ */
 export function triggerEffects(
   dep: Dep | ReactiveEffect[],
   debuggerEventExtraInfo?: DebuggerEventExtraInfo
@@ -616,6 +637,11 @@ export function triggerEffects(
   }
 }
 
+/**
+ * 触发effect
+ * @param effect 
+ * @param debuggerEventExtraInfo 
+ */
 function triggerEffect(
   effect: ReactiveEffect,
   debuggerEventExtraInfo?: DebuggerEventExtraInfo

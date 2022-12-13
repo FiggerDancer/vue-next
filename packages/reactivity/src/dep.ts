@@ -37,15 +37,24 @@ type TrackedMarkers = {
  */
 export const createDep = (effects?: ReactiveEffect[]): Dep => {
   const dep = new Set<ReactiveEffect>(effects) as Dep
+  // w的每一位代表这一位的层数有没有收集依赖
   dep.w = 0
   dep.n = 0
   return dep
 }
 
-// 被跟踪
+/**
+ * 是否已经被当前层收集为依赖
+ * @param dep 
+ * @returns 
+ */
 export const wasTracked = (dep: Dep): boolean => (dep.w & trackOpBit) > 0
 
-// 新跟踪
+/**
+ * 是否是当前层的新依赖
+ * @param dep 
+ * @returns 
+ */
 export const newTracked = (dep: Dep): boolean => (dep.n & trackOpBit) > 0
 
 // effect(() => {  // effectTrackDepth = 0  trackOpbit = 1 << 0
@@ -58,32 +67,45 @@ export const newTracked = (dep: Dep): boolean => (dep.n & trackOpBit) > 0
 // 其实这里就是借助了权限管理的知识，第一层的effect依赖不依赖1，第二层的依赖不依赖11，第三层的依赖不依赖111，只有有以一层不依赖了那这个dep.tag肯定就变了，但是你仔细想&的时候，只要当前这一层effect依赖它，这一层的就不用删
 
 
-// 初始化Dep的标记数量
+/**
+ * 给依赖打标记
+ * @param param0 
+ */
 export const initDepMarkers = ({ deps }: ReactiveEffect) => {
+  // 给
   if (deps.length) {
     for (let i = 0; i < deps.length; i++) {
-      deps[i].w |= trackOpBit // set was tracked // 使用异或给该dep打标记
+      // set was tracked 
+      // 使用异或给该dep打标记
+      // 标记当前层的依赖已经被收集
+      deps[i].w |= trackOpBit 
     }
   }
 }
 
-// 清理标记，同时清理不需要的依赖
+/**
+ * 清理标记，同时清理不需要的依赖
+ * @param effect 
+ */
 export const finalizeDepMarkers = (effect: ReactiveEffect) => {
   const { deps } = effect
   if (deps.length) {
     let ptr = 0
     for (let i = 0; i < deps.length; i++) {
       const dep = deps[i]
-      if (wasTracked(dep) && !newTracked(dep)) { // 如果这个副作用不在被跟踪，那就删除它
+      if (wasTracked(dep) && !newTracked(dep)) { 
+        // 曾经被收集但不是新的依赖，需要删除
         dep.delete(effect)
-      } else { // 如果跟踪那就把它重新放回数组
+      } else { 
+        // 如果之前收集过那就把它重新放回数组
         deps[ptr++] = dep
       }
       // clear bits
-      // 清理标记位，只是清除当前位
+      // 清理标记位，只是清除当前位，也就是当前层已经处理完
       dep.w &= ~trackOpBit
       dep.n &= ~trackOpBit
     }
+    // 剩下的都是不要的了，直接删除
     deps.length = ptr
   }
 }
